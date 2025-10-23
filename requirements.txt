@@ -1,0 +1,5 @@
+openai==1.60.2
+paramiko==3.5.0
+python-dotenv==1.0.1
+PyYAML==6.0.2
+requests==2.32.3

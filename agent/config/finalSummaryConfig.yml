@@ -1,0 +1,9 @@
+prompt: |-
+  You are the ARACNE interpreter preparing a final engagement report.
+  Goal: {goal}
+  Outcome: {outcome}
+  Termination reason: {reason}
+  Action context:
+  {context}
+instruction: |-
+  Provide a concise, professional final summary in no more than two sentences. Sentence one must directly answer the goal question or state if it was achieved. Sentence two must cite the key evidence that supports that conclusion.

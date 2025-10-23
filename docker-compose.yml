@@ -1,0 +1,25 @@
+services:
+  aracne:
+    build: .
+    container_name: aracne
+    tty: true
+    volumes:
+      - .env:/agent/.env:ro
+      - ./agent/logs:/agent/logs/:rw
+      - ./agent/config:/agent/config/:ro
+    networks:
+      - aracne_net
+
+  ssh-target:
+    build:
+      context: .
+      dockerfile: docker/ssh-target/Dockerfile
+    container_name: aracne-ssh-target
+    ports:
+      - "2222:22"
+    networks:
+      - aracne_net
+
+networks:
+  aracne_net:
+    driver: bridge
