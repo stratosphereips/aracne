@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Entry point convenience wrapper to run the agent without changing directories.
+Entry point wrapper to run the agent safely across systems and Python versions.
 """
+
 from pathlib import Path
 import runpy
 import sys
@@ -15,11 +16,15 @@ def main() -> None:
     if not agent_script.exists():
         raise FileNotFoundError(f"Could not locate agent script at {agent_script}")
 
-    # Ensure agent modules (e.g. `lib`) remain importable when executed from the project root.
-    sys.path.insert(0, str(agent_dir))
+    # Add both project_root and agent_dir so imports like lib and agent.lib work
+    for path in (project_root, agent_dir):
+        if str(path) not in sys.path:
+            sys.path.insert(0, str(path))
+
     sys.argv[0] = str(agent_script)
     runpy.run_path(str(agent_script), run_name="__main__")
 
 
 if __name__ == "__main__":
     main()
+
