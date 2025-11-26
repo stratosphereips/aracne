@@ -34,6 +34,9 @@ OPENAI_CLIENTS: Dict[str, OpenAI] = {}
 OPENAI_PROVIDER_KEYS: Dict[str, str] = {}
 OLLAMA_BASE_URL: str | None = None
 
+_THINK_BLOCK_PATTERN = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
+_THINK_TAG_PATTERN = re.compile(r"</?think>", re.IGNORECASE)
+
 AGENT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -98,6 +101,15 @@ def _configure_logging():
 
 
 _configure_logging()
+
+
+def strip_reasoning_tags(text: str | None) -> str:
+    """Remove <think> reasoning tags so only the final answer remains."""
+    if not text:
+        return ""
+    cleaned = _THINK_BLOCK_PATTERN.sub("", text)
+    cleaned = _THINK_TAG_PATTERN.sub("", cleaned)
+    return cleaned.strip()
 
 
 def reset_call_sequence():
@@ -476,9 +488,10 @@ def load_environment(env_path, config_path=None):
 
     used_providers = {
         planner_source_raw,
-        summarizer_source_raw,
         interpreter_source_raw,
     }
+    if summarize:
+        used_providers.add(summarizer_source_raw)
 
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
@@ -690,8 +703,9 @@ def call_model(prompt, model, instruction=None, caller: str = "unspecified"):
         else:
             raise ValueError(f"Error: Unsupported provider '{provider_name}' for model '{model}'.")
         duration = time.perf_counter() - start_ts
-        _log_llm_success(call_id, response, duration)
-        return response
+        cleaned_response = strip_reasoning_tags(response)
+        _log_llm_success(call_id, cleaned_response, duration)
+        return cleaned_response
     except Exception as exc:
         duration = time.perf_counter() - start_ts
         _log_llm_failure(call_id, exc, duration)
