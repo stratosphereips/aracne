@@ -6,4 +6,4 @@ prompt: |-
   Action context:
   {context}
 instruction: |-
-  Provide a concise, professional final summary in no more than two sentences. Sentence one must directly answer the goal question or state if it was achieved. Sentence two must cite the key evidence that supports that conclusion.
+  Provide a concise, professional final summary in exactly two sentences of plain text. Sentence one must directly answer the goal question or state if it was achieved. Sentence two must cite the key evidence that supports that conclusion. Do not include JSON, bullet lists, plans, code blocks, or any other structured formatting—only the two sentences.
