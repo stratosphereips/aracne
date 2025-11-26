@@ -271,6 +271,19 @@ def _context_snapshot(limit_chars: int = 8000) -> str:
     return joined
 
 
+def _enforce_plain_text_summary(summary: str, max_sentences: int = 2) -> str:
+    """Collapse the summary to a plain-text sentence block."""
+    sentence_pattern = re.compile(r"[^.!?]+[.!?]", re.DOTALL)
+    sentences = [re.sub(r"\s+", " ", match).strip() for match in sentence_pattern.findall(summary)]
+
+    if sentences:
+        trimmed = " ".join(sentences[-max_sentences:])
+    else:
+        trimmed = re.sub(r"\s+", " ", summary).strip()
+
+    return trimmed
+
+
 def generate_final_report(goal: str, outcome: str, reason: str) -> str:
     context_text = _context_snapshot()
     prompt_template = FINAL_SUMMARY_CONFIG.get(
@@ -292,9 +305,10 @@ def generate_final_report(goal: str, outcome: str, reason: str) -> str:
     instruction = FINAL_SUMMARY_CONFIG.get(
         "instruction",
         (
-            "Provide a concise, professional final summary in no more than two sentences. "
+            "Provide a concise, professional final summary in exactly two sentences of plain text. "
             "Sentence one must directly answer the goal question or state if it was achieved. "
-            "Sentence two must cite the key evidence that supports that conclusion."
+            "Sentence two must cite the key evidence that supports that conclusion. "
+            "Do not include JSON, bullet lists, plans, or any other structured output—only the two sentences."
         ),
     )
     try:
@@ -309,6 +323,7 @@ def generate_final_report(goal: str, outcome: str, reason: str) -> str:
         log_context_event("Final Summary Error", error_message, color=Palette.RED)
         return error_message
 
+    summary = _enforce_plain_text_summary(summary)
     log_context_event("Final Summary", summary, color=SUCCESS_COLOR)
     return summary
 
