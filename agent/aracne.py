@@ -382,8 +382,10 @@ def send_ssh_command(shell, command, action_count, timeout=COMMAND_TIMEOUT_SECON
         log_shell_command(command)
 
         sentinel = f"__ARACNE_EXIT__{action_count}__"
-        wrapped_command = f"{command}\necho \"{sentinel}$?\"\n"
-        shell.send(wrapped_command)
+        sentinel_suffix = f"; echo \"{sentinel}$?\""
+        # processes that poll stdin (e.g. nmap reading keypresses) from eating
+        # the sentinel echo out of the PTY input buffer while they run
+        shell.send(f"{command}{sentinel_suffix}\n")
 
         buffer = ""
         sentinel_found = False
@@ -397,7 +399,8 @@ def send_ssh_command(shell, command, action_count, timeout=COMMAND_TIMEOUT_SECON
                     break
                 decoded = chunk.decode("utf-8", errors="replace")
                 buffer += decoded
-                if sentinel in buffer:
+                # match sentinel only when followed by a digit ($? has been expanded)
+                if re.search(re.escape(sentinel) + r"\d", buffer):
                     sentinel_found = True
                     break
             else:
@@ -420,7 +423,7 @@ def send_ssh_command(shell, command, action_count, timeout=COMMAND_TIMEOUT_SECON
 
         result["duration"] = time.monotonic() - start_ts
 
-        if sentinel in buffer:
+        if re.search(re.escape(sentinel) + r"\d", buffer):
             exit_match = re.search(rf"{re.escape(sentinel)}(\d+)", buffer)
             if exit_match:
                 try:
@@ -446,8 +449,13 @@ def send_ssh_command(shell, command, action_count, timeout=COMMAND_TIMEOUT_SECON
 
         # Remove the echoed command if present at the beginning of the buffer.
         sent_command = command.rstrip("\n")
+        full_sent = f"{sent_command}{sentinel_suffix}"
         echo_prefixes = (
             f"{sent_command}\r\n",
+            f"{full_sent}\r\n",
+            f"{full_sent}\n",
+            f"{full_sent}\r",
+            full_sent,
             f"{sent_command}\n",
             f"{sent_command}\r",
             sent_command,
