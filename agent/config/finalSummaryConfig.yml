@@ -6,4 +6,23 @@ prompt: |-
   Action context:
   {context}
 instruction: |-
-  Provide a concise, professional final summary in exactly two sentences of plain text. Sentence one must directly answer the goal question or state if it was achieved. Sentence two must cite the key evidence that supports that conclusion. Do not include JSON, bullet lists, plans, code blocks, or any other structured formatting—only the two sentences.
+  Output the following structure exactly — first a 2-line executive summary, then a compact bullet list (max 10 bullets) with key actions and findings.
+
+  2-LINE EXECUTIVE SUMMARY:
+  Line 1: Directly answer whether the goal was achieved. State the outcome clearly.
+  Line 2: Cite the single most important piece of evidence that supports that conclusion.
+
+  COMPACT BULLET LIST (max 10 bullets):
+  Each bullet must be one line, factual, self-contained. No nested bullets, no markdown, no JSON.
+  Cover: actions taken, services discovered, hosts compromised, data exfiltrated, errors encountered, termination reason, and recommendations for re-engagement.
+  Use this exact format:
+
+  SUMMARY:
+  <line 1>
+  <line 2>
+
+  FINDINGS:
+  - <bullet 1>
+  - <bullet 2>
+  - ...
+  - <bullet N>
