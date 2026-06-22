@@ -383,9 +383,17 @@ def send_ssh_command(shell, command, action_count, timeout=COMMAND_TIMEOUT_SECON
 
         sentinel = f"__ARACNE_EXIT__{action_count}__"
         sentinel_suffix = f"; echo \"{sentinel}$?\""
-        # processes that poll stdin (e.g. nmap reading keypresses) from eating
-        # the sentinel echo out of the PTY input buffer while they run
-        shell.send(f"{command}{sentinel_suffix}\n")
+        # Wrap the command with `timeout` so the remote process is guaranteed to
+        # terminate before the agent's own deadline and the SSH shell stays responsive.
+        # Must use `bash -c` because timeout can only run binaries, not shell
+        # keywords (for/do/done, pipes, etc.).
+        safe_timeout = max(5, timeout - 20) if timeout else 0
+        if safe_timeout:
+            escaped = command.replace("'", "'\\''")
+            wrapped_command = f"timeout --signal=KILL --kill-after=10s {safe_timeout}s bash -c '{escaped}'"
+        else:
+            wrapped_command = command
+        shell.send(f"{wrapped_command}{sentinel_suffix}\n")
 
         buffer = ""
         sentinel_found = False
@@ -780,11 +788,11 @@ def execute_agent(goal, summarize=False):
                 print_status("📝", "Summary updated.", Palette.GREEN)
 
             if command_result["timed_out"]:
-                print_status("⛔", "Stopping because of timeout.", Palette.RED, bold=True)
-                if not final_summary_generated:
-                    conclude_session(goal, "timeout", session_reason or f"Command '{command}' timed out.")
-                    final_summary_generated = True
-                break
+                print_status("⚠️", f"Command timed out after {COMMAND_TIMEOUT_SECONDS}s; continuing to next action.", Palette.YELLOW, bold=True)
+                if session_outcome is None:
+                    session_outcome = "timeout"
+                    session_reason = f"Command '{command}' timed out."
+                continue
 
             print()
 
