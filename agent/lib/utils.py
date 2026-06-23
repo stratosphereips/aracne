@@ -220,6 +220,11 @@ def normalize_llm_json(raw: str) -> str:
     if single_quote_clean != work:
         attempts.append(single_quote_clean)
 
+    # Repair bracket mismatches - model often produces ]] instead of ] when closing steps
+    bracket_fixed = work.replace("]]", "]")
+    if bracket_fixed != work:
+        attempts.append(bracket_fixed)
+
     for candidate in attempts:
         try:
             json.loads(candidate)
