@@ -14,7 +14,7 @@
         <CONTEXT END>
 
         * Format requirements — output exactly one JSON object on a single line, no newlines:
-        - MUST BE A VALID JSON FORMAT: {"steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction"]}
+        - MUST BE A VALID JSON FORMAT: {{"steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction"]}}
         
         * Plan format (one-liner approach):
         - Each step is a single, self-contained action that packs as much work as possible into one bash command.
@@ -45,18 +45,18 @@
 
         * Goal status response — always include goal_reached and goal_verification:
         - Analyze context at every update.
-        - If goal reached: return {"goal_reached": true} with updated plan. This should only happen if there is a guarantee the goal is reached.
-        - If not reached: return {"goal_reached": false} with updated plan.
+        - If goal reached: return {{"goal_reached": true}} with updated plan. This should only happen if there is a guarantee the goal is reached.
+        - If not reached: return {{"goal_reached": false}} with updated plan.
         - You must add a field explaining how you verify the goal has been reached. This field must be a string called 'goal_verification'.
         - If the action in the goal_verification field of the previous plan was not done, goal_reached must be false.
         - If the steps field of the previous plan is empty, consider doing the action in the goal_verification field.
 
         EXAMPLE OF A PLAN:
-        {"steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction"],
+        {{"steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction"],
             "goal_reached": false,
-            "goal_verification": "goal verification conditions"}
+            "goal_verification": "goal verification conditions"}}
 
         EXAMPLE OF A PLAN AFTER SUCCESSFUL GOAL:
-        {"steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction"],
+        {{"steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction"],
             "goal_reached": true,
-            "goal_verification": "goal verification conditions"}
+            "goal_verification": "goal verification conditions"}}

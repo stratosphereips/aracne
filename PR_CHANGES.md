@@ -59,3 +59,6 @@ Now outputs:
 - Planner: JSON example renders as `{"steps": [...]}` in the prompt text (single braces).
 - No inline dev comments (`-- fixed`) are present in the prompt text.
 - All YAML syntax is valid (indentation preserved, block scalars intact).
+
+### Additional Fix (2026-06-23)
+- **KeyError '"steps"' crash**: The first version of the prompt fix used single braces `{"steps": ...}` which `str.format()` interpreted as a key. Now all literal braces are doubled to `{{` in the YAML source, producing `{"steps": ...}` in the rendered prompt without tripping Python's formatter.
