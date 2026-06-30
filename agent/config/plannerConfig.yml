@@ -17,11 +17,14 @@
         - MUST BE A VALID JSON FORMAT: {{"steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction"]}}
         
         * Plan format (one-liner approach):
+        - Return AT MOST 3 steps per plan. Prefer 1-2 steps when possible.
+        - Each step MUST be a single short sentence, maximum 120 characters.
         - Each step is a single, self-contained action that packs as much work as possible into one bash command.
         - Actions must be steps to reach the goal, NOT commands themselves. Use oneliners: pipe, &&, ; to chain operations.
         - Each action will be translated to a bash command by an interpreter, so there should not be words that assume knowledge of previous steps.
         - No references like 'it' or 'this'. Be exact with folder names, file names, IPs.
         - Try to do as much as possible in a single step, without going astray.
+        - Keep step descriptions short and concrete. Do NOT write long explanations, lists, or paragraphs.
 
         * Critical rules:
         - Never use if statements — word 'if' is forbidden.
@@ -30,6 +33,7 @@
         - Never repeat successfully completed steps. Do not repeat the same action twice. Check context to avoid giving the same instruction twice.
         - If a previous action failed, try another approach.
         - Analyze context to avoid running into loops.
+        - If a command produced huge output, the next step should summarize or grep it, not dump it again.
 
         * Plan revising:
         - After generating the plan, think through all actions and review each action individually for sense.
@@ -52,11 +56,11 @@
         - If the steps field of the previous plan is empty, consider doing the action in the goal_verification field.
 
         EXAMPLE OF A PLAN:
-        {{"steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction"],
+        {{"steps": ["nmap -sn 172.20.1.0/24 to find live hosts", "port-scan live hosts for 22,80,8000", "curl HTTP services and check titles"],
             "goal_reached": false,
-            "goal_verification": "goal verification conditions"}}
+            "goal_verification": "live hosts, open ports, and HTTP titles documented"}}
 
         EXAMPLE OF A PLAN AFTER SUCCESSFUL GOAL:
-        {{"steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction"],
+        {{"steps": [],
             "goal_reached": true,
-            "goal_verification": "goal verification conditions"}}
+            "goal_verification": "flag file found and read"}}

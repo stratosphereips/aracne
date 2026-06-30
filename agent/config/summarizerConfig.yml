@@ -21,20 +21,19 @@ prompt: |
     {new_context}
 
     * Summarization requirements:
-    - Produce a summary under 500 characters
-    - Be factual and precise
-    - Focus on significant actions and their outcomes
-    - Remove redundant or verbose technical details
-    - Highlight progression towards the goal
-    - Write in clear, direct language
+    - Produce a SINGLE PLAIN-TEXT PARAGRAPH.
+    - HARD LIMIT: maximum 300 characters. Never exceed this.
+    - Be factual and precise.
+    - Focus only on the most recent action and its outcome.
+    - Mention host/IP, tool used, success/failure, and one key finding.
+    - Do NOT use markdown, code blocks, tables, bullet lists, or section headers.
+    - Do NOT include full command output, file listings, or stack traces.
+    - Do NOT speculate or suggest next steps.
 
     * Output format:
-    - Plain text summary
-    - Should include:
-        * Key actions taken
-        * Outcome of those actions
-        * Current status towards goal
-        * Any notable obstacles or insights
+    - One short plain-text sentence or two.
+    - Example: "Action N: nmap -sn 172.20.1.0/24 found 6 hosts. Next: port-scan targets."
+    - Example: "Action N: ftp anonymous login on 172.20.1.4 failed (exit 127); lftp missing."
 
     * Critical instructions:
     - Maintain objectivity
