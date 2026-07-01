@@ -221,9 +221,26 @@ def normalize_llm_json(raw: str) -> str:
         attempts.append(single_quote_clean)
 
     # Repair bracket mismatches - model often produces ]] instead of ] when closing steps
-    bracket_fixed = work.replace("]]", "]")
+    bracket_fixed = re.sub(r'\]\](?=\s*[},])', ']', work)
+    bracket_fixed = re.sub(r'\}\}(?=\s*[,}]|\s*$)', '}', bracket_fixed)
     if bracket_fixed != work:
         attempts.append(bracket_fixed)
+
+    # Fix invalid JSON backslash escapes (e.g. \K, \d, \s in regex patterns)
+    # Double any backslash NOT followed by a valid JSON escape character.
+    valid_escapes = set('"/bfnrtu\\')
+    out = []
+    work_chars = list(work)
+    i = 0
+    while i < len(work_chars):
+        if work_chars[i] == '\\' and (i + 1 >= len(work_chars) or work_chars[i + 1] not in valid_escapes):
+            out.append('\\\\')
+        else:
+            out.append(work_chars[i])
+        i += 1
+    escape_fixed = ''.join(out)
+    if escape_fixed != work:
+        attempts.append(escape_fixed)
 
     for candidate in attempts:
         try:
