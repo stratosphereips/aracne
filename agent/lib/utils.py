@@ -76,10 +76,10 @@ def _configure_logging():
     if getattr(_configure_logging, "configured", False):
         return
 
-    shell_handler = logging.FileHandler(SHELL_LOG_PATH, mode="w", encoding="utf-8")
+    shell_handler = logging.FileHandler(SHELL_LOG_PATH, mode="a", encoding="utf-8")
     shell_handler.setFormatter(logging.Formatter("%(message)s"))
 
-    context_handler = logging.FileHandler(CONTEXT_LOG_PATH, mode="w", encoding="utf-8")
+    context_handler = logging.FileHandler(CONTEXT_LOG_PATH, mode="a", encoding="utf-8")
     context_handler.setFormatter(logging.Formatter("%(message)s"))
 
     shell_logger = logging.getLogger("aracne.shell")
