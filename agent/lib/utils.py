@@ -597,10 +597,18 @@ def call_openai(provider_name: str, prompt: str, model: str):
     """Calls an OpenAI-compatible API provider with the given prompt."""
     client = _get_openai_client(provider_name)
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        request = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            # Deterministic decoding so a run is reproducible. Override via
+            # ARACNE_LLM_TEMPERATURE / ARACNE_LLM_SEED; seed is best-effort
+            # (honoured only by providers that support it).
+            "temperature": float(os.getenv("ARACNE_LLM_TEMPERATURE", "0")),
+        }
+        seed = os.getenv("ARACNE_LLM_SEED")
+        if seed:
+            request["seed"] = int(seed)
+        response = client.chat.completions.create(**request)
         content = response.choices[0].message.content.strip()
         return content
     except Exception as exc:
@@ -745,7 +753,14 @@ def _ensure_openai_models_available(provider_name: str, models: set[str]):
 
     for model in sorted(models):
         try:
-            client.models.retrieve(model=model)
+            # CESNET and some OpenAI-compatible gateways do not implement
+            # GET /models/{id}; a 1-token chat completion is the portable
+            # reachability + model-name check.
+            client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1,
+            )
         except Exception as exc:  # noqa: BLE001 - we want full context to bubble up
             failures.append(f"{model}: {exc}")
 
