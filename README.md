@@ -153,8 +153,7 @@ python aracne.py \
   -s
 ```
 
-Nmap scans can run for up to 30 minutes. ARACNE reports progress while waiting and captures the completed scan output. If the interpreter adds a Python formatter to an nmap pipeline, ARACNE runs the scan directly and uses nmap's readable output.
-For vague local discovery requests, ARACNE scans the local `/24` around each active IPv4 interface. Specify a wider CIDR in the goal when you need broader coverage.
+Nmap scans can run for up to 30 minutes. ARACNE reports progress while waiting and captures the completed scan output. The interpreter's command is executed as generated.
 
 ### Switching Models
 

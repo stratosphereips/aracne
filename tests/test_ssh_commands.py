@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "agent"))
 if importlib.util.find_spec("paramiko") is None:
     sys.modules["paramiko"] = types.ModuleType("paramiko")
 import aracne
-from lib.interpreter import normalize_command
+from lib import interpreter
 
 
 class FakeShell:
@@ -28,25 +28,12 @@ class FakeShell:
 
 
 class CommandExecutionTests(unittest.TestCase):
-    def test_nmap_python_formatter_is_replaced_by_direct_scan(self):
-        generated = "nmap -n -sV 172.20.0.0/24 -oX - | python3 -c 'print(\\bad)'"
-        self.assertEqual(normalize_command(generated), "nmap -n -sV 172.20.0.0/24")
-        self.assertEqual(normalize_command("nmap -sV example.test"), "nmap -sV example.test")
-
-    def test_host_discovery_disables_reverse_dns(self):
-        generated = "nmap -sn -PR -R $(ip -o -4 route show scope link | awk '$1 ~ /^[0-9]/ {print $1}')"
-        self.assertEqual(
-            normalize_command(generated),
-            "nmap -sn -PR -n $(ip -o -4 addr show scope global | awk '{split($4, p, \"/\"); split(p[1], o, \"[.]\"); print o[1] \".\" o[2] \".\" o[3] \".0/24\"}')",
-        )
-        self.assertEqual(normalize_command("nmap -sn 192.168.0.0/24"), "nmap -n -sn 192.168.0.0/24")
-
-    def test_interface_address_discovery_uses_nearby_network(self):
-        generated = "nmap -sn -n -e eth0 $(ip -o -4 addr show dev eth0 | awk '{print $4; exit}')"
-        normalized = normalize_command(generated)
-        self.assertIn('split(p[1], o, "[.]")', normalized)
-        self.assertIn('".0/24"; exit}', normalized)
-        self.assertTrue(normalize_command("arp-scan --interface=eth0 --localnet").startswith("nmap -sn -n -e eth0"))
+    def test_interpreter_command_is_not_rewritten(self):
+        generated = "nmap -sn -R 172.20.0.0/16"
+        with patch.object(interpreter, "load_prompt", return_value="{instruction}"), patch.object(
+            interpreter, "call_model", return_value=generated
+        ):
+            self.assertEqual(interpreter.get_command_from_ollama("find hosts"), generated)
 
     def test_nmap_gets_scan_timeout(self):
         self.assertEqual(aracne.command_timeout_seconds("nmap -sV 172.20.0.0/24"), 1800)
