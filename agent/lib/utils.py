@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import time
 from datetime import datetime
@@ -20,6 +21,12 @@ MODELS = {
     "planner": "o3-mini-2025-01-31",
     "summarizer": "gpt-4o-2024-08-06",
 }
+MODEL_TEMPERATURES = {
+    "interpreter": 1.0,
+    "planner": 1.0,
+    "summarizer": 1.0,
+}
+DEFAULT_TEMPERATURE = 1.0
 PLANNER_SOURCE = "openai"
 SUMMARIZER_SOURCE = "openai"
 INTERPRETER_SOURCE = "local"
@@ -110,6 +117,64 @@ def strip_reasoning_tags(text: str | None) -> str:
     cleaned = _THINK_BLOCK_PATTERN.sub("", text)
     cleaned = _THINK_TAG_PATTERN.sub("", cleaned)
     return cleaned.strip()
+
+
+def _coerce_temperature(raw_value, label: str) -> float:
+    """Convert YAML temperature values to finite floats in the documented range."""
+    if raw_value is None:
+        return DEFAULT_TEMPERATURE
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Error: Invalid temperature '{raw_value}' for {label}.") from exc
+    if not math.isfinite(value) or not 0 <= value <= 2:
+        raise ValueError(f"Error: {label} must be between 0 and 2.")
+    return value
+
+
+def _flatten_message_content(message) -> str:
+    """Extract plain text from OpenAI chat message payloads."""
+    if message is None:
+        return ""
+
+    content = getattr(message, "content", None)
+
+    if isinstance(content, str):
+        return content.strip()
+
+    if isinstance(content, list):
+        parts: List[str] = []
+        for item in content:
+            if not item:
+                continue
+            if isinstance(item, str):
+                parts.append(item)
+                continue
+            if isinstance(item, dict):
+                text_value = item.get("text") or item.get("content")
+                if text_value:
+                    parts.append(str(text_value))
+                continue
+            text_value = getattr(item, "text", None)
+            if text_value:
+                parts.append(str(text_value))
+        flattened = "\n".join(part.strip() for part in parts if part.strip())
+        if flattened:
+            return flattened
+
+    if content is not None and not isinstance(content, list):
+        text_value = str(content).strip()
+        if text_value:
+            return text_value
+
+    tool_calls = getattr(message, "tool_calls", None)
+    if tool_calls:
+        try:
+            return json.dumps(tool_calls, ensure_ascii=False)
+        except Exception:
+            return str(tool_calls)
+
+    return ""
 
 
 def reset_call_sequence():
@@ -475,6 +540,18 @@ def load_environment(env_path, config_path=None):
     interpreter_model = attack_config["interpreter_model"]
     planner_model = attack_config["planner_model"]
     summarizer_model = attack_config["summarizer_model"]
+    interpreter_temperature = _coerce_temperature(
+        attack_config.get("interpreter_temperature"),
+        "interpreter_temperature",
+    )
+    planner_temperature = _coerce_temperature(
+        attack_config.get("planner_temperature"),
+        "planner_temperature",
+    )
+    summarizer_temperature = _coerce_temperature(
+        attack_config.get("summarizer_temperature"),
+        "summarizer_temperature",
+    )
     summarize = attack_config["summarizing"]
     action_limit = attack_config["action_limit"]
 
@@ -551,6 +628,9 @@ def load_environment(env_path, config_path=None):
     MODELS["interpreter"] = interpreter_model
     MODELS["planner"] = planner_model
     MODELS["summarizer"] = summarizer_model
+    MODEL_TEMPERATURES["interpreter"] = interpreter_temperature
+    MODEL_TEMPERATURES["planner"] = planner_temperature
+    MODEL_TEMPERATURES["summarizer"] = summarizer_temperature
 
     return goal, summarize, OLLAMA_BASE_URL or OLLAMA_URL, action_limit
 
@@ -571,15 +651,24 @@ def _get_openai_client(provider_name: str) -> OpenAI:
     return client
 
 
-def call_openai(provider_name: str, prompt: str, model: str):
+def call_openai(provider_name: str, prompt: str, model: str, temperature: float | None = None):
     """Calls an OpenAI-compatible API provider with the given prompt."""
     client = _get_openai_client(provider_name)
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        content = response.choices[0].message.content.strip()
+        request_kwargs = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if temperature is not None:
+            request_kwargs["temperature"] = float(temperature)
+        response = client.chat.completions.create(**request_kwargs)
+        choice = response.choices[0]
+        content = _flatten_message_content(getattr(choice, "message", None))
+        if not content:
+            raise LLMProviderError(
+                provider_name,
+                "OpenAI-compatible provider returned no message content in its response.",
+            )
         return content
     except Exception as exc:
         message = str(exc).lower()
@@ -601,7 +690,14 @@ def _build_chat_messages(prompt: str, instruction: str | None) -> List[Dict[str,
     return [{"role": "user", "content": str(prompt)}]
 
 
-def call_local(prompt, model, instruction=None, base_url: str | None = None, provider_name: str | None = None):
+def call_local(
+    prompt,
+    model,
+    instruction=None,
+    base_url: str | None = None,
+    provider_name: str | None = None,
+    temperature: float | None = None,
+):
     provider_label = provider_name or "ollama"
     base = base_url or OLLAMA_BASE_URL
     if not base:
@@ -615,6 +711,10 @@ def call_local(prompt, model, instruction=None, base_url: str | None = None, pro
         "messages": _build_chat_messages(prompt, instruction),
         "stream": False,
     }
+    if temperature is not None:
+        options = dict(payload.get("options") or {})
+        options["temperature"] = float(temperature)
+        payload["options"] = options
 
     attempt_errors: list[str] = []
 
@@ -665,19 +765,37 @@ def call_model(prompt, model, instruction=None, caller: str = "unspecified"):
     provider_name = None
     formatted_prompt = prompt
     display_instruction = None
+    temperature: float | None = None
 
-    if model == MODELS["planner"]:
+    # Route by the caller's role, not by model-name equality. Two roles may
+    # legitimately share the same model name (e.g. planner_model ==
+    # interpreter_model); matching on the model name alone misroutes them and,
+    # for the interpreter, skips the {instruction} substitution below, leaving
+    # the literal placeholder in the prompt and producing empty/no-op commands.
+    caller_role = (caller or "").split(".", 1)[0].lower()
+    if caller_role not in {"planner", "summarizer", "interpreter"}:
+        if model == MODELS["planner"]:
+            caller_role = "planner"
+        elif model == MODELS["summarizer"]:
+            caller_role = "summarizer"
+        elif model == MODELS["interpreter"]:
+            caller_role = "interpreter"
+        else:
+            raise ValueError(f"Error: Model '{model}' is not recognised in MODELS.")
+
+    if caller_role == "planner":
         provider_name = PLANNER_SOURCE
-    elif model == MODELS["summarizer"]:
+        temperature = MODEL_TEMPERATURES.get("planner", DEFAULT_TEMPERATURE)
+    elif caller_role == "summarizer":
         provider_name = SUMMARIZER_SOURCE
-    elif model == MODELS["interpreter"]:
+        temperature = MODEL_TEMPERATURES.get("summarizer", DEFAULT_TEMPERATURE)
+    else:  # interpreter
         provider_name = INTERPRETER_SOURCE
+        temperature = MODEL_TEMPERATURES.get("interpreter", DEFAULT_TEMPERATURE)
         if _resolve_provider_kind(provider_name) == "openai" and instruction is not None:
             formatted_prompt = prompt.format(instruction=instruction)
         else:
             display_instruction = instruction
-    else:
-        raise ValueError(f"Error: Model '{model}' is not recognised in MODELS.")
 
     provider_kind = _resolve_provider_kind(provider_name)
 
@@ -695,11 +813,18 @@ def call_model(prompt, model, instruction=None, caller: str = "unspecified"):
     try:
         start_ts = time.perf_counter()
         if provider_kind == "openai":
-            response = call_openai(provider_name, formatted_prompt, model)
+            response = call_openai(provider_name, formatted_prompt, model, temperature=temperature)
         elif provider_kind == "ollama":
             provider = _get_provider(provider_name)
             base_url = provider.get("base_url") or OLLAMA_BASE_URL
-            response = call_local(prompt, model, instruction, base_url=base_url, provider_name=provider_name)
+            response = call_local(
+                prompt,
+                model,
+                instruction,
+                base_url=base_url,
+                provider_name=provider_name,
+                temperature=temperature,
+            )
         else:
             raise ValueError(f"Error: Unsupported provider '{provider_name}' for model '{model}'.")
         duration = time.perf_counter() - start_ts

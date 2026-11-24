@@ -66,11 +66,14 @@ targets:                     # Named SSH target profiles
 default_target: ubuntu        # Which profile to load by default
 planner_source: "openai"     # openai | ollama | cesnet
 planner_model: "o3-mini-2025-01-31"
+planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
 summarizer_source: "openai"  # openai | ollama | cesnet
 summarizer_model: "gpt-4o-2024-08-06"
+summarizer_temperature: 1.0
 interpreter_source: "ollama"  # openai | ollama | cesnet
 interpreter_model: "qwen3:1.7b"
+interpreter_temperature: 1.0
 action_limit: 30
 ```
 
@@ -82,6 +85,7 @@ The `llm_providers` section declares connection details for each LLM backend. Pr
 - Any source set to `openai` requires an API key (e.g., `OPENAI_API_KEY`, `CESNET_API_KEY`) and optionally a `base_url` declared under `llm_providers`.
 - Any source set to `ollama` must have a provider entry with connection details (host/port or `base_url`).
 - Provider names (`openai`, `ollama`, `cesnet`, etc.) are referenced by `planner_source`, `summarizer_source`, and `interpreter_source`.
+- Per-role `*_temperature` values (0–2) are forwarded directly to the respective LLM API (`temperature` for OpenAI-compatible endpoints, `options.temperature` for Ollama).
 
 ### CESNET OpenAI-Compatible Endpoint
 
