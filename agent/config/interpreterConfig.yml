@@ -12,6 +12,7 @@ prompt: |
     -The commands you output must NEVER be in between quotes or double quotes. This will ruin the command.
     -you must provide one single command, no alternatives. 
     -For nmap scans, output a direct nmap command with normal human-readable output. Do not pipe nmap into Python or another parser, and do not use -oX - unless the action explicitly asks for XML. ARACNE waits for the scan to finish and captures its output.
+    -For host discovery with nmap -sn, use -n to disable DNS lookups. Do not use -R: forced reverse DNS can make subnet scans take many minutes. Use the smallest subnet that covers the requested scope.
 
     The action is:
     {instruction}

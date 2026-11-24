@@ -33,6 +33,14 @@ class CommandExecutionTests(unittest.TestCase):
         self.assertEqual(normalize_command(generated), "nmap -n -sV 172.20.0.0/24")
         self.assertEqual(normalize_command("nmap -sV example.test"), "nmap -sV example.test")
 
+    def test_host_discovery_disables_reverse_dns(self):
+        generated = "nmap -sn -PR -R $(ip -o -4 route show scope link | awk '$1 ~ /^[0-9]/ {print $1}')"
+        self.assertEqual(
+            normalize_command(generated),
+            "nmap -sn -PR -n $(ip -o -4 route show scope link | awk '$1 ~ /^[0-9]/ {print $1}')",
+        )
+        self.assertEqual(normalize_command("nmap -sn 192.168.0.0/24"), "nmap -n -sn 192.168.0.0/24")
+
     def test_nmap_gets_scan_timeout(self):
         self.assertEqual(aracne.command_timeout_seconds("nmap -sV 172.20.0.0/24"), 1800)
         self.assertEqual(aracne.command_timeout_seconds("echo ready"), 300)

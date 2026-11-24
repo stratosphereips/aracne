@@ -5,11 +5,15 @@ from lib.utils import MODELS, call_model, load_prompt
 
 
 def normalize_command(command):
-    """Keep nmap output usable when the model adds a fragile Python formatter."""
+    """Keep nmap scans from stalling on DNS or a fragile Python formatter."""
     match = re.match(r"^\s*(nmap\b[^|]*)\s*\|\s*python(?:3(?:\.\d+)?)?\s+-c\b", command, re.DOTALL)
-    if not match:
-        return command
-    scan = re.sub(r"(?<!\S)-oX\s+-(?=\s|$)", "", match.group(1))
+    scan = match.group(1) if match else command
+    if match:
+        scan = re.sub(r"(?<!\S)-oX\s+-(?=\s|$)", "", scan)
+    if re.match(r"^\s*nmap(?:\s|$)", scan) and re.search(r"(?<!\S)-sn(?=\s|$)", scan):
+        scan = re.sub(r"(?<!\S)-R(?=\s|$)", "-n", scan)
+        if not re.search(r"(?<!\S)-n(?=\s|$)", scan):
+            scan = re.sub(r"\bnmap\b", "nmap -n", scan, count=1)
     return scan.strip()
 
 def get_command_from_ollama(instruction):
