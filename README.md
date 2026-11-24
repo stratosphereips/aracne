@@ -156,6 +156,7 @@ python aracne.py \
 Nmap scans can run for up to 30 minutes. ARACNE reports progress while waiting and captures the completed scan output. The interpreter's command is executed as generated.
 
 Use `--interactive` (`-i`) to keep the CLI open for more goals. Press Ctrl+C while a command runs to interrupt it on the remote SSH shell and enter a new goal. After each goal finishes, enter another goal or type `quit` to exit. Each new goal starts a new run and SSH connection.
+Interactive goals share session memory: recent commands and results stay available to the planner, and older or large results are condensed automatically. The full output remains in the logs. This memory lasts until the CLI exits and works without `--summarize`.
 
 ### Switching Models
 

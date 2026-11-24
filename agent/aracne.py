@@ -21,6 +21,7 @@ import time
 import paramiko
 
 from lib import interpreter, planner, summarizer
+from lib.memory import InteractiveMemory
 from lib.utils import (
     MODELS,
     SUCCESS_COLOR,
@@ -477,9 +478,13 @@ def send_ssh_command(shell, command, action_count, timeout=None, poll_interval=C
         return result
 
 
-def generate_plan(goal, context=None):
+def generate_plan(goal, context=None, *, fresh=False):
    """Generate or adapt plan based on goal and context."""
-   return planner.adapt_plan(goal, context) if context else planner.generate_plan(goal)
+   if fresh:
+       return planner.generate_plan(goal, prior_context=context)
+   if context:
+       return planner.adapt_plan(goal, context)
+   return planner.generate_plan(goal)
 
 
 def fetch_command_from_plan(plan, action_index):
@@ -635,7 +640,7 @@ def set_goal(goals: list[str], key: int) -> str:
    return selected_goal
 
 
-def execute_agent(goal, summarize=False, interactive=False):
+def execute_agent(goal, summarize=False, interactive=False, memory=None):
    """Main execution loop for the pentesting agent."""
    print_status("🔌", "Establishing SSH connection...", Palette.BLUE, bold=True)
    client = None
@@ -658,7 +663,7 @@ def execute_agent(goal, summarize=False, interactive=False):
 
    print_status("🧠", "Planner is crafting the initial plan...", Palette.MAGENTA)
    try:
-       plan = generate_plan(goal)
+       plan = generate_plan(goal, context=memory.context() if memory else None, fresh=True)
    except KeyboardInterrupt:
        client.close()
        if not interactive:
@@ -760,7 +765,15 @@ def execute_agent(goal, summarize=False, interactive=False):
                 print_status("📥", "Command output received.", Palette.GREEN)
 
             if command_result["output"]:
-                print_block("📄", "Output", command_result["output"], Palette.GRAY)
+                displayed_output = command_result["output"]
+                if memory and len(displayed_output) > 12000:
+                    omitted = len(displayed_output) - 12000
+                    displayed_output = (
+                        displayed_output[:6000]
+                        + f"\n[... {omitted} characters omitted from screen; full output is in logs ...]\n"
+                        + displayed_output[-6000:]
+                    )
+                print_block("📄", "Output", displayed_output, Palette.GRAY)
 
             if summarize:
                 print_status("📝", "Summarizer is condensing the latest context...", Palette.CYAN)
@@ -781,6 +794,10 @@ def execute_agent(goal, summarize=False, interactive=False):
             if summarize:
                 summary = context
                 print_status("📝", "Summary updated.", Palette.GREEN)
+
+            if memory:
+                memory.record_action(goal, command, command_result)
+                context = memory.context()
 
             if command_result["timed_out"]:
                 print_status("⛔", "Stopping because of timeout.", Palette.RED, bold=True)
@@ -813,6 +830,12 @@ def execute_agent(goal, summarize=False, interactive=False):
            shell.send("\x03")
        except Exception:
            pass
+       if memory and 'command' in locals() and command:
+           memory.record_action(goal, command, {
+               "output": "Interrupted by user before completion.",
+               "exit_status": None,
+               "timed_out": False,
+           })
        session_outcome = "interrupted"
        session_reason = "Interrupted by user."
        final_summary_generated = True
@@ -920,10 +943,13 @@ def main():
     print_status("✅", "LLM connectivity verified.", Palette.GREEN, bold=True)
     print()
 
+    memory = InteractiveMemory() if args.interactive else None
     while True:
         try:
+            if memory:
+                memory.start_goal(goal)
             update_logs(goal, summarize)
-            execute_agent(goal, summarize, interactive=args.interactive)
+            execute_agent(goal, summarize, interactive=args.interactive, memory=memory)
         except LLMProviderError as err:
             print_status("❌", f"{err}", Palette.RED, bold=True)
             if not args.interactive:

@@ -81,6 +81,7 @@ class CommandExecutionTests(unittest.TestCase):
         ):
             aracne.main()
         self.assertEqual([call.args[0] for call in execute.call_args_list], ["first", "second"])
+        self.assertIs(execute.call_args_list[0].kwargs["memory"], execute.call_args_list[1].kwargs["memory"])
 
     def test_interpreter_command_is_not_rewritten(self):
         generated = "nmap -sn -R 172.20.0.0/16"
