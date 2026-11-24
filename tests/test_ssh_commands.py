@@ -1,5 +1,7 @@
 import sys
+import base64
 import importlib.util
+import subprocess
 import types
 import unittest
 from argparse import Namespace
@@ -29,6 +31,19 @@ class FakeShell:
 
 
 class CommandExecutionTests(unittest.TestCase):
+    def test_heredoc_is_sent_as_one_shell_line(self):
+        command = "cat <<'EOF'\nScan documentation\nEOF"
+        shell = FakeShell([b"__ARACNE_EXIT__2__0\r\n"])
+        result = aracne.send_ssh_command(shell, command, 2, poll_interval=0)
+        wire_command = shell.sent[0]
+        self.assertEqual(len(wire_command.splitlines()), 1)
+        self.assertNotIn("Scan documentation", wire_command)
+        completed = subprocess.run(["sh", "-c", wire_command], capture_output=True, text=True, timeout=5)
+        self.assertEqual(completed.returncode, 0)
+        self.assertIn("Scan documentation", completed.stdout)
+        self.assertIn("__ARACNE_EXIT__2__0", completed.stdout)
+        self.assertEqual(result["exit_status"], 0)
+
     def test_interactive_interrupt_sends_remote_ctrl_c(self):
         class InterruptingShell(FakeShell):
             def __init__(self):
@@ -51,7 +66,7 @@ class CommandExecutionTests(unittest.TestCase):
             aracne.action_limit = 2
             aracne.execute_agent("wait", interactive=True)
         self.assertIn("\x03", shell.sent)
-        self.assertTrue(any("sleep 30" in value for value in shell.sent))
+        self.assertTrue(any(base64.b64encode(b"sleep 30").decode() in value for value in shell.sent))
         self.assertEqual(finalize.call_args.args[1], "interrupted")
 
     def test_interactive_mode_accepts_another_goal(self):

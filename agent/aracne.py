@@ -7,6 +7,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 import argparse
+import base64
 import datetime
 import json
 import logging
@@ -391,10 +392,12 @@ def send_ssh_command(shell, command, action_count, timeout=None, poll_interval=C
         log_shell_command(command)
 
         sentinel = f"__ARACNE_EXIT__{action_count}__"
-        sentinel_suffix = f"; echo \"{sentinel}$?\""
-        # processes that poll stdin (e.g. nmap reading keypresses) from eating
-        # the sentinel echo out of the PTY input buffer while they run
-        shell.send(f"{command}{sentinel_suffix}\n")
+        encoded = base64.b64encode(command.encode("utf-8")).decode("ascii")
+        # Keep heredocs and multiline commands intact while placing the exit
+        # marker on the same PTY input line. eval preserves shell state (cd,
+        # exports), and programs that read stdin cannot consume the marker.
+        wire_command = f"eval \"$(printf '%s' '{encoded}' | base64 -d)\"; echo \"{sentinel}$?\""
+        shell.send(wire_command + "\n")
 
         buffer = ""
         sentinel_found = False
@@ -445,12 +448,6 @@ def send_ssh_command(shell, command, action_count, timeout=None, poll_interval=C
                 except ValueError:
                     result["exit_status"] = None
             buffer = re.sub(
-                rf'^.*echo\s+"{re.escape(sentinel)}\$\?"\s*\r?\n',
-                "",
-                buffer,
-                flags=re.MULTILINE,
-            )
-            buffer = re.sub(
                 rf'^.*{re.escape(sentinel)}\d+.*\r?\n?',
                 "",
                 buffer,
@@ -462,26 +459,8 @@ def send_ssh_command(shell, command, action_count, timeout=None, poll_interval=C
             log_shell_output(f"[warning] Sentinel missing for command '{command}'. Output may be incomplete.")
 
         # Remove the echoed command if present at the beginning of the buffer.
-        sent_command = command.rstrip("\n")
-        full_sent = f"{sent_command}{sentinel_suffix}"
-        echo_prefixes = (
-            f"{sent_command}\r\n",
-            f"{full_sent}\r\n",
-            f"{full_sent}\n",
-            f"{full_sent}\r",
-            full_sent,
-            f"{sent_command}\n",
-            f"{sent_command}\r",
-            sent_command,
-            f"{command}\r\n",
-            f"{command}\n",
-            f"{command}\r",
-            command,
-        )
-        for prefix in echo_prefixes:
-            if buffer.startswith(prefix):
-                buffer = buffer[len(prefix):]
-                break
+        if buffer.startswith(wire_command):
+            buffer = buffer[len(wire_command):].lstrip("\r\n")
 
         cleaned_output = buffer.strip("\x00")
         result["output"] = cleaned_output.strip()
