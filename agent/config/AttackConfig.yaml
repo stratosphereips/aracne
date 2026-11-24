@@ -1,19 +1,19 @@
 goal: null
-planner_source: openai
-planner_model: o3-mini-2025-01-31
+planner_source: cesnet
+planner_model: glm-5.3
 planner_temperature: 1.0
 #planner_source: ollama
 #planner_model: qwen3:1.7b
 #planner_source: cesnet
 #planner_model: deepseek-r1
 summarizing: false
-summarizer_source: openai
-summarizer_model: gpt-4o-2024-08-06
+summarizer_source: cesnet
+summarizer_model: glm-5.3
 summarizer_temperature: 1.0
 #interpreter_source: ollama
 #interpreter_model: qwen3:1.7b
-interpreter_source: openai
-interpreter_model: gpt-3.5-turbo
+interpreter_source: cesnet
+interpreter_model: glm-5.3
 interpreter_temperature: 1.0
 action_limit: 50
 targets:

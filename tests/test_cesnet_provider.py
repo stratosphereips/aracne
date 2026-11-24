@@ -13,6 +13,12 @@ from lib import utils
 
 
 class CesnetProviderTests(unittest.TestCase):
+    def test_default_roles_use_working_cesnet_provider(self):
+        config = yaml.safe_load((Path(__file__).resolve().parents[1] / "agent/config/AttackConfig.yaml").read_text())
+        for role in ("planner", "interpreter", "summarizer"):
+            self.assertEqual(config[f"{role}_source"], "cesnet")
+            self.assertEqual(config[f"{role}_model"], "glm-5.3")
+
     def _config_path(self, directory, base_url):
         config = yaml.safe_load((Path(__file__).resolve().parents[1] / "agent/config/AttackConfig.yaml").read_text())
         config["planner_source"] = "cesnet"

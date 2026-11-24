@@ -21,6 +21,7 @@ import time
 import paramiko
 
 from lib import interpreter, planner, summarizer
+from lib.command_approval import approve_command, review_reasons
 from lib.memory import InteractiveMemory, report_relevant_output
 from lib.utils import (
     MODELS,
@@ -754,6 +755,20 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
                 print_status("🎯", "Goal reached! Stopping execution.", Palette.GREEN, bold=True)
                 conclude_session(goal, "success", f"Interpreter signalled goal reached on action {action_number}.", memory=memory)
                 final_summary_generated = True
+                break
+
+            reasons = review_reasons(command)
+            if not approve_command(command, reasons):
+                print_status("⛔", "Command was not approved; stopping this goal.", Palette.YELLOW)
+                log_context_event("Command Not Executed", f"Approval declined for: {command}")
+                if memory:
+                    memory.record_action(goal, command, {
+                        "output": "Not executed: human approval was not given.",
+                        "exit_status": None,
+                        "timed_out": False,
+                    })
+                session_outcome = "denied"
+                session_reason = "Human approval was not given for a command requiring review."
                 break
 
             print_status("🚀", "Sending command to remote host...", Palette.BLUE)

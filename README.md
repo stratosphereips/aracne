@@ -33,7 +33,7 @@ pip install -r requirements.txt
 cp env_EXAMPLE agent/.env
 ```
 
-Populate `agent/.env` with SSH target credentials and (optional) OpenAI API key.
+Populate `agent/.env` with `CESNET_API_KEY` for the default CESNET models. SSH target profiles are configured in `agent/config/AttackConfig.yaml`; `OPENAI_API_KEY` is only needed when a role uses OpenAI.
 
 ## Configuration
 
@@ -64,15 +64,15 @@ targets:                     # Named SSH target profiles
     user: admin
     password: admin
 default_target: ubuntu        # Which profile to load by default
-planner_source: "openai"     # openai | ollama | cesnet
-planner_model: "o3-mini-2025-01-31"
+planner_source: "cesnet"     # openai | ollama | cesnet
+planner_model: "glm-5.3"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
-summarizer_source: "openai"  # openai | ollama | cesnet
-summarizer_model: "gpt-4o-2024-08-06"
+summarizer_source: "cesnet"  # openai | ollama | cesnet
+summarizer_model: "glm-5.3"
 summarizer_temperature: 1.0
-interpreter_source: "ollama"  # openai | ollama | cesnet
-interpreter_model: "qwen3:1.7b"
+interpreter_source: "cesnet"  # openai | ollama | cesnet
+interpreter_model: "glm-5.3"
 interpreter_temperature: 1.0
 action_limit: 30
 ```
@@ -154,6 +154,8 @@ Nmap scans can run for up to 30 minutes. ARACNE reports progress while waiting a
 
 Use `--interactive` (`-i`) to keep the CLI open for more goals. Press Ctrl+C while a command runs to interrupt it on the remote SSH shell and enter a new goal. After each goal finishes, enter another goal or type `quit` to exit. Each new goal starts a new run and SSH connection.
 Interactive goals share session memory: recent commands and results stay available to the planner, and older or large results are condensed automatically. The full output remains in the logs. This memory lasts until the CLI exits and works without `--summarize`.
+
+Commands that delete data, change system state, write files, or use shell syntax that is difficult to classify require an explicit `yes` at a terminal before they run. Declining or running without an interactive terminal stops the current goal without executing the command.
 
 ### Switching Models
 

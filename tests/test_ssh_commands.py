@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "agent"))
-if importlib.util.find_spec("paramiko") is None:
+if "paramiko" not in sys.modules and importlib.util.find_spec("paramiko") is None:
     sys.modules["paramiko"] = types.ModuleType("paramiko")
 import aracne
 from lib import interpreter
@@ -114,7 +114,7 @@ class CommandExecutionTests(unittest.TestCase):
             aracne, "generate_plan", return_value={"steps": ["wait"]}
         ), patch.object(aracne, "fetch_command_from_plan", return_value=("sleep 30", "wait")), patch.object(
             aracne, "finalize_experiment"
-        ) as finalize, patch.object(aracne, "conclude_session"):
+        ) as finalize, patch.object(aracne, "conclude_session"), patch.object(aracne, "approve_command", return_value=True):
             aracne.action_limit = 2
             aracne.execute_agent("wait", interactive=True)
         self.assertIn("\x03", shell.sent)
