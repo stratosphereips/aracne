@@ -41,6 +41,13 @@ class CommandExecutionTests(unittest.TestCase):
         )
         self.assertEqual(normalize_command("nmap -sn 192.168.0.0/24"), "nmap -n -sn 192.168.0.0/24")
 
+    def test_interface_address_discovery_uses_nearby_network(self):
+        generated = "nmap -sn -n -e eth0 $(ip -o -4 addr show dev eth0 | awk '{print $4; exit}')"
+        normalized = normalize_command(generated)
+        self.assertIn('split(p[1], o, "[.]")', normalized)
+        self.assertIn('".0/24"; exit}', normalized)
+        self.assertTrue(normalize_command("arp-scan --interface=eth0 --localnet").startswith("nmap -sn -n -e eth0"))
+
     def test_nmap_gets_scan_timeout(self):
         self.assertEqual(aracne.command_timeout_seconds("nmap -sV 172.20.0.0/24"), 1800)
         self.assertEqual(aracne.command_timeout_seconds("echo ready"), 300)
