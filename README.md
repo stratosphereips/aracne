@@ -156,6 +156,7 @@ Use `--interactive` (`-i`) to keep the CLI open for more goals. Press Ctrl+C whi
 Interactive goals share session memory: recent commands and results stay available to the planner, and older or large results are condensed automatically. The full output remains in the logs. This memory lasts until the CLI exits and works without `--summarize`.
 
 Commands that delete data, change system state, write files, or use shell syntax that is difficult to classify require an explicit `yes` at a terminal before they run. Declining or running without an interactive terminal stops the current goal without executing the command.
+If a plan, generated command, or command output asks for human or system-owner confirmation, ARACNE asks you directly. An explicit `yes` is recorded as user approval in the planner context before work continues; any other answer stops the current goal.
 
 ### Switching Models
 

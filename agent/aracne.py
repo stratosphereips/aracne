@@ -21,7 +21,13 @@ import time
 import paramiko
 
 from lib import interpreter, planner, summarizer
-from lib.command_approval import approve_command, review_reasons
+from lib.command_approval import (
+    approve_command,
+    confirmation_excerpt,
+    request_human_confirmation,
+    requests_human_confirmation,
+    review_reasons,
+)
 from lib.memory import InteractiveMemory, report_relevant_output
 from lib.utils import (
     MODELS,
@@ -519,6 +525,9 @@ def fetch_command_from_plan(plan, action_index):
    if not step_instruction:
        return None, None
 
+   if requests_human_confirmation(step_instruction):
+       return None, step_instruction
+
    command = interpreter.get_command_from_ollama(step_instruction)
    return command, step_instruction
 
@@ -570,6 +579,22 @@ def store_context(goal, plan, command, index, output, summary=None, summarize=Fa
         return summarized
 
     return "\n\n".join(context_history)
+
+
+def record_human_confirmation(goal, request, approved, memory=None):
+    """Keep the user's decision available to later plans and reports."""
+    decision = "User approved the requested action." if approved else "User did not approve the requested action."
+    entry = f"GOAL: {goal}\nHUMAN CONFIRMATION REQUEST: {request}\nHUMAN DECISION: {decision}"
+    context_history.append(entry)
+    log_context_event("Human Confirmation", entry)
+    if memory:
+        memory.record_action(goal, "<human confirmation>", {
+            "output": f"Request: {request}\n{decision}",
+            "exit_status": 0 if approved else None,
+            "timed_out": False,
+        })
+    print_status("✅" if approved else "⛔", decision, Palette.GREEN if approved else Palette.YELLOW)
+    return decision
 
 
 def connect_ssh(max_retries=3):
@@ -735,7 +760,11 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
             )
 
             command, step_instruction = fetch_command_from_plan(plan, action_number)
-            if not command:
+            confirmation_request = next(
+                (text for text in (step_instruction, command) if text and requests_human_confirmation(text)),
+                None,
+            )
+            if not command and not confirmation_request:
                 print_status("✅", "Plan completed. No further steps.", Palette.GREEN, bold=True)
                 session_outcome = "completed"
                 session_reason = "Planner exhausted all steps."
@@ -748,8 +777,33 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
                 break
 
             print_status("📝", f"Step: {step_instruction}", Palette.WHITE)
-            print_status("🤖", "Interpreter translating into shell command...", Palette.CYAN)
-            print_status("💡", f"Command ready: {command}", Palette.YELLOW)
+            if command:
+                print_status("🤖", "Interpreter translated the step into a shell command.", Palette.CYAN)
+                print_status("💡", f"Command ready: {command}", Palette.YELLOW)
+
+            if confirmation_request:
+                request = confirmation_excerpt(confirmation_request)
+                approved = request_human_confirmation(request)
+                decision = record_human_confirmation(goal, request, approved, memory=memory)
+                if not approved:
+                    session_outcome = "denied"
+                    session_reason = "User did not approve a requested human confirmation."
+                    break
+                if summarize:
+                    summary = f"{summary or ''}\n{decision}".strip()
+                context = memory.context() if memory else "\n\n".join(context_history)
+                action_number += 1
+                print_status("🔁", "Planner is continuing after user approval...", Palette.MAGENTA)
+                plan = generate_plan(goal, context)
+                if plan == 'goal reached':
+                    conclude_session(goal, "success", "Planner confirmed the goal after user approval.", memory=memory)
+                    final_summary_generated = True
+                    break
+                if not plan or not plan.get("steps"):
+                    session_outcome = "completed"
+                    session_reason = "Planner had no more steps after user approval."
+                    break
+                continue
 
             if command.strip() in {'out', '-out'}:
                 print_status("🎯", "Goal reached! Stopping execution.", Palette.GREEN, bold=True)
@@ -835,6 +889,18 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
             if memory:
                 memory.record_action(goal, command, command_result)
                 context = memory.context()
+
+            if requests_human_confirmation(command_result["output"]):
+                request = confirmation_excerpt(command_result["output"])
+                approved = request_human_confirmation(request)
+                decision = record_human_confirmation(goal, request, approved, memory=memory)
+                if not approved:
+                    session_outcome = "denied"
+                    session_reason = "User did not approve a requested human confirmation."
+                    break
+                if summarize:
+                    summary = f"{summary or ''}\n{decision}".strip()
+                context = memory.context() if memory else "\n\n".join(context_history)
 
             if command_result["timed_out"]:
                 print_status("⛔", "Stopping because of timeout.", Palette.RED, bold=True)

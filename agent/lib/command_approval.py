@@ -76,3 +76,49 @@ def approve_command(command: str, reasons: list[str], *, input_fn=input, is_tty=
         print("\n⛔ Command not approved.")
         return False
     return answer.strip().lower() == "yes"
+
+
+def requests_human_confirmation(message: str) -> bool:
+    """Detect a request to obtain human/owner approval before continuing."""
+    if not message:
+        return False
+    text = " ".join(message.lower().split())
+    actor = r"(?:system owner|owner|administrator|admin|human|user|operator)"
+    approval = r"(?:confirm(?:ation)?|approv(?:e|al)|authoriz(?:e|ation)|permission|consent|review|verify|signs?[ -]?off)"
+    request = r"(?:ask|have|obtain|get|request|require[sd]?|need[sd]?|must|await(?:ing)?|wait(?:ing)? for|please)"
+    patterns = (
+        rf"\b{request}\b.{{0,100}}\b{actor}\b.{{0,80}}\b{approval}\b",
+        rf"\b{request}\b.{{0,100}}\b{approval}\b.{{0,80}}\b{actor}\b",
+        rf"\b{actor}\b.{{0,80}}\b{request}\b.{{0,80}}\b{approval}\b",
+        rf"\b{actor}\b.{{0,80}}\b{approval}\b.{{0,80}}\b{request}\b",
+        rf"\b{approval}\b.{{0,80}}\b{actor}\b.{{0,80}}\b{request}\b",
+    )
+    return any(re.search(pattern, text) for pattern in patterns)
+
+
+def request_human_confirmation(message: str, *, input_fn=input, is_tty=None) -> bool:
+    """Ask the current user to approve an LLM or command-output request."""
+    print("\n⚠️  Human confirmation requested:")
+    print(message)
+    if is_tty is None:
+        is_tty = sys.stdin.isatty()
+    if not is_tty:
+        print("⛔ No interactive terminal is available; approval not given.")
+        return False
+    try:
+        answer = input_fn("Type 'yes' if you approve, or anything else to stop this goal: ")
+    except (EOFError, KeyboardInterrupt):
+        print("\n⛔ Approval not given.")
+        return False
+    return answer.strip().lower() == "yes"
+
+
+def confirmation_excerpt(message: str) -> str:
+    """Show the relevant request without dumping a large command output."""
+    for line in message.splitlines():
+        if requests_human_confirmation(line):
+            return line.strip()[:500]
+    compact = " ".join(message.split())
+    match = re.search(r"\b(?:system owner|owner|administrator|admin|human|user|operator)\b", compact, re.I)
+    start = max(0, match.start() - 120) if match else 0
+    return compact[start:start + 500]
