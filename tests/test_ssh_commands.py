@@ -37,7 +37,7 @@ class CommandExecutionTests(unittest.TestCase):
         generated = "nmap -sn -PR -R $(ip -o -4 route show scope link | awk '$1 ~ /^[0-9]/ {print $1}')"
         self.assertEqual(
             normalize_command(generated),
-            "nmap -sn -PR -n $(ip -o -4 route show scope link | awk '$1 ~ /^[0-9]/ {print $1}')",
+            "nmap -sn -PR -n $(ip -o -4 addr show scope global | awk '{split($4, p, \"/\"); split(p[1], o, \"[.]\"); print o[1] \".\" o[2] \".\" o[3] \".0/24\"}')",
         )
         self.assertEqual(normalize_command("nmap -sn 192.168.0.0/24"), "nmap -n -sn 192.168.0.0/24")
 

@@ -14,6 +14,18 @@ def normalize_command(command):
         scan = re.sub(r"(?<!\S)-R(?=\s|$)", "-n", scan)
         if not re.search(r"(?<!\S)-n(?=\s|$)", scan):
             scan = re.sub(r"\bnmap\b", "nmap -n", scan, count=1)
+        # A vague local-discovery request should not expand a connected /16
+        # into tens of thousands of probes. Scan the local /24 of each interface.
+        local_neighborhoods = (
+            "$(ip -o -4 addr show scope global | "
+            "awk '{split($4, p, \"/\"); split(p[1], o, \"[.]\"); "
+            "print o[1] \".\" o[2] \".\" o[3] \".0/24\"}')"
+        )
+        scan = re.sub(
+            r"\$\(\s*ip\s+-o\s+-4\s+route\s+show\s+scope\s+link\s*\|\s*awk\s+'[^']*'\s*\)",
+            lambda _: local_neighborhoods,
+            scan,
+        )
     return scan.strip()
 
 def get_command_from_ollama(instruction):
