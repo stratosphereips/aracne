@@ -656,7 +656,7 @@ def set_goal(goals: list[str], key: int) -> str:
    return selected_goal
 
 
-def execute_agent(goal, summarize=False):
+def execute_agent(goal, summarize=False, interactive=False):
    """Main execution loop for the pentesting agent."""
    print_status("🔌", "Establishing SSH connection...", Palette.BLUE, bold=True)
    client = None
@@ -678,18 +678,28 @@ def execute_agent(goal, summarize=False):
    summary = None
 
    print_status("🧠", "Planner is crafting the initial plan...", Palette.MAGENTA)
-   plan = generate_plan(goal)
+   try:
+       plan = generate_plan(goal)
+   except KeyboardInterrupt:
+       client.close()
+       if not interactive:
+           raise
+       print_status("⛔", "Goal interrupted.", Palette.YELLOW)
+       finalize_experiment(goal, "interrupted", "Interrupted during planning.", "")
+       return
 
    if plan == 'goal reached':
        print_status("🎯", "Planner reports the goal is already satisfied!", Palette.GREEN, bold=True)
        conclude_session(goal, "success", "Planner indicated the objective was already satisfied.")
        final_summary_generated = True
+       client.close()
        return
 
    if not plan or not plan.get("steps"):
        print_status("⚠️", "Planner returned no actionable steps. Exiting.", Palette.RED, bold=True)
        conclude_session(goal, "incomplete", "Planner did not provide actionable steps.")
        final_summary_generated = True
+       client.close()
        return
 
    print_status(
@@ -819,6 +829,18 @@ def execute_agent(goal, summarize=False):
                     session_reason = "Planner exhausted all steps."
                 break
 
+   except KeyboardInterrupt:
+       try:
+           shell.send("\x03")
+       except Exception:
+           pass
+       session_outcome = "interrupted"
+       session_reason = "Interrupted by user."
+       final_summary_generated = True
+       finalize_experiment(goal, session_outcome, session_reason, "")
+       print_status("⛔", "Remote command interrupted. Enter a new goal or quit.", Palette.YELLOW)
+       if not interactive:
+           raise
    finally:
        if not final_summary_generated:
            outcome = session_outcome or "incomplete"
@@ -837,6 +859,7 @@ def parse_arguments():
    parser.add_argument("-o", "--ollama-ip",required=False, help="Set the ip where the ollama model is running.")
    parser.add_argument("-c", "--config", required=False, default="config/AttackConfig.yaml", help="Path to .yaml config file")
    parser.add_argument("--goals-file", default="config/goals.txt", help="Path to file containing default goals")
+   parser.add_argument("-i", "--interactive", action="store_true", help="Accept new goals after completion; Ctrl+C interrupts the current command")
    return parser.parse_args()
 
 
@@ -918,12 +941,32 @@ def main():
     print_status("✅", "LLM connectivity verified.", Palette.GREEN, bold=True)
     print()
 
-    try:
-        update_logs(goal, summarize)
-        execute_agent(goal, summarize)
-    except LLMProviderError as err:
-        print_status("❌", f"{err}", Palette.RED, bold=True)
-        return
+    while True:
+        try:
+            update_logs(goal, summarize)
+            execute_agent(goal, summarize, interactive=args.interactive)
+        except LLMProviderError as err:
+            print_status("❌", f"{err}", Palette.RED, bold=True)
+            if not args.interactive:
+                return
+        except KeyboardInterrupt:
+            if not args.interactive:
+                raise
+            print_status("⛔", "Goal interrupted. Enter a new goal or quit.", Palette.YELLOW)
+
+        if not args.interactive:
+            return
+        while True:
+            try:
+                goal = input(style("New goal (or 'quit'): ", Palette.BOLD)).strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return
+            if goal.lower() in {"quit", "exit"}:
+                return
+            if goal:
+                break
+            print_status("ℹ️", "Please enter a goal or 'quit'.", Palette.YELLOW)
 
 
 if __name__ == "__main__":
