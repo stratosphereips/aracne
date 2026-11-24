@@ -286,8 +286,8 @@ def _enforce_plain_text_summary(summary: str, max_sentences: int = 2) -> str:
     return trimmed
 
 
-def generate_final_report(goal: str, outcome: str, reason: str) -> str:
-    context_text = _context_snapshot()
+def generate_final_report(goal: str, outcome: str, reason: str, memory=None) -> str:
+    context_text = memory.context() if memory and memory.context() else _context_snapshot()
     prompt_template = FINAL_SUMMARY_CONFIG.get(
         "prompt",
         (
@@ -330,8 +330,8 @@ def generate_final_report(goal: str, outcome: str, reason: str) -> str:
     return summary
 
 
-def conclude_session(goal: str, outcome: str, reason: str):
-    summary = generate_final_report(goal, outcome, reason)
+def conclude_session(goal: str, outcome: str, reason: str, memory=None):
+    summary = generate_final_report(goal, outcome, reason, memory=memory)
     color = Palette.GREEN if not summary.lower().startswith("final summary unavailable") else Palette.RED
     print_block("🧾", "Final Summary", summary, color)
     finalize_experiment(goal, outcome, reason, summary)
@@ -674,14 +674,14 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
 
    if plan == 'goal reached':
        print_status("🎯", "Planner reports the goal is already satisfied!", Palette.GREEN, bold=True)
-       conclude_session(goal, "success", "Planner indicated the objective was already satisfied.")
+       conclude_session(goal, "success", "Planner indicated the objective was already satisfied.", memory=memory)
        final_summary_generated = True
        client.close()
        return
 
    if not plan or not plan.get("steps"):
        print_status("⚠️", "Planner returned no actionable steps. Exiting.", Palette.RED, bold=True)
-       conclude_session(goal, "incomplete", "Planner did not provide actionable steps.")
+       conclude_session(goal, "incomplete", "Planner did not provide actionable steps.", memory=memory)
        final_summary_generated = True
        client.close()
        return
@@ -720,7 +720,7 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
 
             if command in ['out', 'out\n', '-out'] and step_instruction == 'goal reached':
                 print_status("🎯", "Goal reached according to planner!", Palette.GREEN, bold=True)
-                conclude_session(goal, "success", f"Planner confirmed the goal on action {action_number}.")
+                conclude_session(goal, "success", f"Planner confirmed the goal on action {action_number}.", memory=memory)
                 final_summary_generated = True
                 break
 
@@ -730,7 +730,7 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
 
             if command.strip() in {'out', '-out'}:
                 print_status("🎯", "Goal reached! Stopping execution.", Palette.GREEN, bold=True)
-                conclude_session(goal, "success", f"Interpreter signalled goal reached on action {action_number}.")
+                conclude_session(goal, "success", f"Interpreter signalled goal reached on action {action_number}.", memory=memory)
                 final_summary_generated = True
                 break
 
@@ -802,7 +802,7 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
             if command_result["timed_out"]:
                 print_status("⛔", "Stopping because of timeout.", Palette.RED, bold=True)
                 if not final_summary_generated:
-                    conclude_session(goal, "timeout", session_reason or f"Command '{command}' timed out.")
+                    conclude_session(goal, "timeout", session_reason or f"Command '{command}' timed out.", memory=memory)
                     final_summary_generated = True
                 break
 
@@ -814,7 +814,7 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
             plan = generate_plan(goal, context)
             if plan == 'goal reached':
                 print_status("🎯", "Planner confirms goal reached!", Palette.GREEN, bold=True)
-                conclude_session(goal, "success", f"Planner confirmed the goal after action {action_number - 1}.")
+                conclude_session(goal, "success", f"Planner confirmed the goal after action {action_number - 1}.", memory=memory)
                 final_summary_generated = True
                 break
 
@@ -847,7 +847,7 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
        if not final_summary_generated:
            outcome = session_outcome or "incomplete"
            reason = session_reason or "Session ended without explicit goal confirmation."
-           conclude_session(goal, outcome, reason)
+           conclude_session(goal, outcome, reason, memory=memory)
        if client:
            client.close()
 

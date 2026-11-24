@@ -13,6 +13,7 @@ if importlib.util.find_spec("paramiko") is None:
     sys.modules["paramiko"] = types.ModuleType("paramiko")
 import aracne
 from lib import interpreter
+from lib.memory import InteractiveMemory
 
 
 class FakeShell:
@@ -31,6 +32,16 @@ class FakeShell:
 
 
 class CommandExecutionTests(unittest.TestCase):
+    def test_interactive_final_report_uses_prior_goal_memory(self):
+        memory = InteractiveMemory()
+        memory.record_action("find username", "whoami", {
+            "output": "pedro", "exit_status": 0, "timed_out": False,
+        })
+        with patch.object(aracne, "call_model", return_value="The username is pedro.") as call:
+            aracne.generate_final_report("What username was found?", "success", "Known from history", memory)
+        self.assertIn("COMMAND: whoami", call.call_args.args[0])
+        self.assertIn("pedro", call.call_args.args[0])
+
     def test_heredoc_is_sent_as_one_shell_line(self):
         command = "cat <<'EOF'\nScan documentation\nEOF"
         shell = FakeShell([b"__ARACNE_EXIT__2__0\r\n"])
