@@ -56,6 +56,7 @@ FINAL_SUMMARY_CONFIG = load_prompt_config("config/finalSummaryConfig.yml")
 AGENT_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = AGENT_ROOT.parent
 EXPERIMENTS_ROOT = REPO_ROOT / "logs" / "experiments"
+SESSIONS_ROOT = REPO_ROOT / "logs" / "sessions"
 CURRENT_EXPERIMENT_DIR: Path | None = None
 CURRENT_EXPERIMENT_LOG: Path | None = None
 EXPERIMENT_START_TIME: datetime.datetime | None = None
@@ -965,6 +966,7 @@ def parse_arguments():
    parser.add_argument("-c", "--config", required=False, default="config/AttackConfig.yaml", help="Path to .yaml config file")
    parser.add_argument("--goals-file", default="config/goals.txt", help="Path to file containing default goals")
    parser.add_argument("-i", "--interactive", action="store_true", help="Accept new goals after completion; Ctrl+C interrupts the current command")
+   parser.add_argument("--load-session", nargs="?", const="latest", metavar="PATH|latest", help="Restore a saved interactive session (defaults to latest) and continue its last goal; implies --interactive")
    return parser.parse_args()
 
 
@@ -981,6 +983,17 @@ def main():
         print_status("❌", f"{err}", Palette.RED, bold=True)
         return
 
+    load_session = getattr(args, "load_session", None)
+    if load_session:
+        try:
+            memory = InteractiveMemory.load_session(load_session, SESSIONS_ROOT)
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            print_status("❌", f"Could not load session: {exc}", Palette.RED, bold=True)
+            return
+        args.interactive = True
+    else:
+        memory = InteractiveMemory.new_session(SESSIONS_ROOT) if args.interactive else None
+
     # Overwrite with parameter values if provided
     if args.ollama_ip:
         ollama_url = args.ollama_ip
@@ -988,6 +1001,8 @@ def main():
         summarize = args.summarize
     if args.goal:
         goal = args.goal
+    elif load_session and memory.current_goal:
+        goal = memory.current_goal
     elif config_goal and config_goal != '':
         goal = config_goal
     else:
@@ -1028,6 +1043,8 @@ def main():
     )
     print_status("📡", f"Ollama URL: {ollama_url or '<not set>'}", Palette.CYAN)
     print_status("🎯", f"Working goal: {goal}", Palette.GREEN, bold=True)
+    if memory:
+        print_status("💾", f"Session file: {memory.session_path}", Palette.CYAN)
     print()
 
     print_llm_overview()
@@ -1046,11 +1063,14 @@ def main():
     print_status("✅", "LLM connectivity verified.", Palette.GREEN, bold=True)
     print()
 
-    memory = InteractiveMemory() if args.interactive else None
+    resumed_first_goal = bool(load_session and goal == memory.current_goal)
     while True:
         try:
             if memory:
-                memory.start_goal(goal)
+                if resumed_first_goal:
+                    resumed_first_goal = False
+                else:
+                    memory.start_goal(goal)
             update_logs(goal, summarize)
             execute_agent(goal, summarize, interactive=args.interactive, memory=memory)
         except LLMProviderError as err:

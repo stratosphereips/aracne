@@ -2,6 +2,7 @@ import sys
 import base64
 import importlib.util
 import subprocess
+import tempfile
 import types
 import unittest
 from argparse import Namespace
@@ -32,6 +33,10 @@ class FakeShell:
 
 
 class CommandExecutionTests(unittest.TestCase):
+    def test_load_session_flag_defaults_to_latest(self):
+        with patch.object(sys, "argv", ["aracne.py", "--load-session"]):
+            self.assertEqual(aracne.parse_arguments().load_session, "latest")
+
     def test_final_summary_preserves_versions_and_all_facts(self):
         raw = (
             "- **22** — SSH (OpenSSH 10.2p1 Ubuntu 2ubuntu3.5)\n"
@@ -124,7 +129,7 @@ class CommandExecutionTests(unittest.TestCase):
     def test_interactive_mode_accepts_another_goal(self):
         args = Namespace(env=".env", config="config/AttackConfig.yaml", goal="first", ollama_ip=None,
                          summarize=False, goals_file="", interactive=True)
-        with patch.object(aracne, "parse_arguments", return_value=args), patch.object(
+        with tempfile.TemporaryDirectory() as session_dir, patch.object(aracne, "SESSIONS_ROOT", Path(session_dir)), patch.object(aracne, "parse_arguments", return_value=args), patch.object(
             aracne, "setup_env", return_value=(None, False, None, 2)
         ), patch.object(aracne, "verify_llm_connectivity"), patch.object(
             aracne, "print_llm_overview"
@@ -134,6 +139,26 @@ class CommandExecutionTests(unittest.TestCase):
             aracne.main()
         self.assertEqual([call.args[0] for call in execute.call_args_list], ["first", "second"])
         self.assertIs(execute.call_args_list[0].kwargs["memory"], execute.call_args_list[1].kwargs["memory"])
+
+    def test_load_session_resumes_saved_goal_in_interactive_mode(self):
+        memory = InteractiveMemory()
+        memory.current_goal = "inspect a host"
+        memory.recent = ["GOAL: find hosts\nOUTPUT:\n172.20.0.1 is up"]
+        args = Namespace(env=".env", config="config/AttackConfig.yaml", goal=None, ollama_ip=None,
+                         summarize=False, goals_file="", interactive=False, load_session="latest")
+        with patch.object(aracne, "parse_arguments", return_value=args), patch.object(
+            aracne, "setup_env", return_value=(None, False, None, 2)
+        ), patch.object(aracne.InteractiveMemory, "load_session", return_value=memory), patch.object(
+            aracne, "verify_llm_connectivity"
+        ), patch.object(aracne, "print_llm_overview"), patch.object(
+            aracne, "update_logs"
+        ), patch.object(aracne, "execute_agent") as execute, patch(
+            "builtins.input", return_value="quit"
+        ):
+            aracne.main()
+        self.assertEqual(execute.call_args.args[0], "inspect a host")
+        self.assertIs(execute.call_args.kwargs["memory"], memory)
+        self.assertTrue(args.interactive)
 
     def test_interpreter_command_is_not_rewritten(self):
         generated = "nmap -sn -R 172.20.0.0/16"

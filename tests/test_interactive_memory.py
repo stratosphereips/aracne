@@ -1,4 +1,5 @@
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -48,6 +49,53 @@ class InteractiveMemoryTests(unittest.TestCase):
         self.assertIn("22/tcp open ssh", context)
         self.assertIn("Nmap done", context)
         self.assertNotIn("SF-Port2223", context)
+
+    def test_saved_session_restores_goal_and_context(self):
+        with tempfile.TemporaryDirectory() as directory:
+            memory = InteractiveMemory.new_session(directory)
+            memory.start_goal("find nearby hosts")
+            memory.record_action("find nearby hosts", "nmap -sn 172.20.0.1", {
+                "output": "172.20.0.1 is up", "exit_status": 0, "timed_out": False,
+            })
+            restored = InteractiveMemory.load_session(memory.session_path, directory)
+            self.assertEqual(restored.current_goal, "find nearby hosts")
+            self.assertIn("172.20.0.1 is up", restored.context())
+            restored.start_goal("inspect 172.20.0.1")
+            self.assertEqual(InteractiveMemory.load_session("latest", directory).current_goal, "inspect 172.20.0.1")
+
+    def test_legacy_experiment_imports_command_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            from pathlib import Path
+            experiment = Path(directory) / "experiment"
+            experiment.mkdir()
+            (experiment / "experiment.log").write_text("Goal: find hosts\n", encoding="utf-8")
+            (experiment / "context.log").write_text(
+                "Context Entry #1  2026-11-24 10:00:00\n"
+                "    GOAL: find hosts\n"
+                "    COMMAND EXECUTED: nmap -sn 172.20.0.1\n"
+                "    COMMAND EXIT STATUS: 0\n"
+                "    COMMAND TIMED OUT: no\n"
+                "    COMMAND OUTPUT:\n"
+                "    172.20.0.1 is up\n"
+                "──────────────────────────────\n",
+                encoding="utf-8",
+            )
+            restored = InteractiveMemory.load_session(experiment, Path(directory) / "sessions")
+            self.assertEqual(restored.current_goal, "find hosts")
+            self.assertIn("nmap -sn 172.20.0.1", restored.context())
+            self.assertIn("172.20.0.1 is up", restored.context())
+            self.assertTrue(restored.session_path.exists())
+
+    def test_latest_imports_legacy_experiment_when_no_snapshot_exists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            from pathlib import Path
+            experiment = Path(directory) / "experiments" / "old-run"
+            experiment.mkdir(parents=True)
+            (experiment / "experiment.log").write_text("Goal: list hosts\n", encoding="utf-8")
+            (experiment / "context.log").write_text("Session Start\n", encoding="utf-8")
+            memory = InteractiveMemory.load_session("latest", Path(directory) / "sessions")
+            self.assertEqual(memory.current_goal, "list hosts")
+            self.assertTrue(memory.session_path.exists())
 
 
 if __name__ == "__main__":

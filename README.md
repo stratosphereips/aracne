@@ -153,7 +153,9 @@ python aracne.py \
 Nmap scans can run for up to 30 minutes. ARACNE reports progress while waiting and captures the completed scan output. The interpreter's command is executed as generated.
 
 Use `--interactive` (`-i`) to keep the CLI open for more goals. Press Ctrl+C while a command runs to interrupt it on the remote SSH shell and enter a new goal. After each goal finishes, enter another goal or type `quit` to exit. Each new goal starts a new run and SSH connection.
-Interactive goals share session memory: recent commands and results stay available to the planner, and older or large results are condensed automatically. The full output remains in the logs. This memory lasts until the CLI exits and works without `--summarize`.
+Interactive goals share session memory: recent commands and results stay available to the planner, and older or large results are condensed automatically. The full output remains in the logs. Session memory is saved after each action and works without `--summarize`.
+
+To continue a saved session, run `python aracne.py --load-session` (or `--load-session latest`). ARACNE restores the last goal and opens interactive mode. Add `-g "new goal"` to continue the same history with a new instruction. You can also pass a session JSON path, an experiment directory, or its `context.log` to `--load-session`. Session files are stored in `logs/sessions/`; `latest` imports the newest archived experiment if no session file exists.
 
 Commands that delete data, change system state, write files, or use shell syntax that is difficult to classify require an explicit `yes` at a terminal before they run. Declining or running without an interactive terminal stops the current goal without executing the command.
 If a plan, generated command, or command output asks for human or system-owner confirmation, ARACNE asks you directly. An explicit `yes` is recorded as user approval in the planner context before work continues; any other answer stops the current goal.
@@ -218,12 +220,13 @@ If no goal is specified, ARACNE prompts you with a list of predefined pentesting
 
 ## Logs
 
-Logs live under `logs/` and are rebuilt on each run:
+Logs live under `logs/`. The active `agent.log` and `context.log` are rebuilt on each run; experiment archives and session snapshots persist:
 
 | File              | Description                                                       |
 |-------------------|-------------------------------------------------------------------|
 | `agent.log`       | Colorized simulation of the remote shell (commands + output).     |
 | `context.log`     | Sequenced LLM call trace with prompts, responses, summaries, etc. |
+| `sessions/*.json` | Saved interactive memory for `--load-session`.                   |
 
 `context.log` uses ANSI colors, section dividers, and indenting for readability.
 
