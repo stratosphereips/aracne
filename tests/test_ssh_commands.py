@@ -43,6 +43,19 @@ class CommandExecutionTests(unittest.TestCase):
             self.assertIn(fact, cleaned)
         self.assertTrue(cleaned.startswith("22 — SSH"))
 
+    def test_final_summary_formats_model_table_as_readable_rows(self):
+        raw = (
+            "The host exposes two services:\n"
+            "| Port | Service | Detected version |\n"
+            "|---|---|---|\n"
+            "| 22/tcp | SSH | OpenSSH 10.2p1 Ubuntu |\n"
+            "| 80/tcp | HTTP | SimpleHTTPServer 0.6 |"
+        )
+        cleaned = aracne._clean_final_summary(raw)
+        self.assertIn("22/tcp: SSH (OpenSSH 10.2p1 Ubuntu)", cleaned)
+        self.assertIn("80/tcp: HTTP (SimpleHTTPServer 0.6)", cleaned)
+        self.assertNotIn("|---|", cleaned)
+
     def test_report_context_keeps_port_table_and_drops_fingerprint(self):
         previous = list(aracne.context_history)
         try:

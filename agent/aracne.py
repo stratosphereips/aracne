@@ -291,11 +291,21 @@ def _clean_final_summary(summary: str) -> str:
     lines = []
     for line in summary.splitlines():
         line = re.sub(r"^\s*(?:#{1,6}\s*|[-*]\s+)", "", line).strip()
-        if line and not line.startswith("```"):
-            lines.append(line)
-    plain = " ".join(lines)
-    plain = re.sub(r"\*\*(.*?)\*\*", r"\1", plain)
-    return re.sub(r"\s+", " ", plain).strip()
+        if not line or line.startswith("```"):
+            continue
+        line = re.sub(r"\*\*(.*?)\*\*", r"\1", line)
+        if line.startswith("|") and line.endswith("|"):
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
+            if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
+                continue
+            if cells and cells[0].lower() == "port":
+                continue
+            if len(cells) >= 3 and re.fullmatch(r"\d+/(?:tcp|udp)", cells[0]):
+                line = f"{cells[0]}: {cells[1]} ({'; '.join(cells[2:])})"
+            else:
+                line = "; ".join(cells)
+        lines.append(re.sub(r"\s+", " ", line).strip())
+    return "\n".join(lines)
 
 
 def generate_final_report(goal: str, outcome: str, reason: str, memory=None) -> str:
