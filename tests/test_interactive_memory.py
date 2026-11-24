@@ -37,6 +37,18 @@ class InteractiveMemoryTests(unittest.TestCase):
         self.assertIn(prior, call.call_args.args[0])
         self.assertIn("judge goal_reached only for the current goal", call.call_args.args[0])
 
+    def test_memory_keeps_ports_without_raw_nmap_fingerprint(self):
+        memory = InteractiveMemory()
+        memory.record_action("find services", "nmap -sV host", {
+            "output": "PORT STATE SERVICE\n22/tcp open ssh\nSF-Port2223-TCP:raw-data\nSF:more-raw-data\nNmap done",
+            "exit_status": 0,
+            "timed_out": False,
+        })
+        context = memory.context()
+        self.assertIn("22/tcp open ssh", context)
+        self.assertIn("Nmap done", context)
+        self.assertNotIn("SF-Port2223", context)
+
 
 if __name__ == "__main__":
     unittest.main()

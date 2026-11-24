@@ -6,4 +6,4 @@ prompt: |-
   Action context:
   {context}
 instruction: |-
-  Provide a concise, professional final summary in exactly two sentences of plain text. Sentence one must directly answer the goal question or state if it was achieved. Sentence two must cite the key evidence that supports that conclusion. Do not include JSON, bullet lists, plans, code blocks, or any other structured formatting—only the two sentences.
+  Provide a concise, professional final summary in exactly two sentences of plain text. Sentence one must directly answer the goal question or state if it was achieved. Sentence two must cite the key evidence that supports that conclusion. For nmap output, focus on the host, open ports, services, and exact version strings; ignore raw service fingerprint data. Do not include JSON, bullet lists, plans, code blocks, or any other structured formatting—only the two sentences.

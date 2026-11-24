@@ -21,7 +21,7 @@ import time
 import paramiko
 
 from lib import interpreter, planner, summarizer
-from lib.memory import InteractiveMemory
+from lib.memory import InteractiveMemory, report_relevant_output
 from lib.utils import (
     MODELS,
     SUCCESS_COLOR,
@@ -267,23 +267,35 @@ def finalize_experiment(goal: str, outcome: str, reason: str, final_summary: str
 def _context_snapshot(limit_chars: int = 8000) -> str:
     if not context_history:
         return "No actions were executed."
-    joined = "\n\n".join(context_history)
-    if len(joined) > limit_chars:
-        return joined[-limit_chars:]
-    return joined
+    entries = [report_relevant_output(entry) for entry in context_history]
+    selected = []
+    used = 0
+    for entry in reversed(entries):
+        available = limit_chars - used - (2 if selected else 0)
+        if available < 500:
+            break
+        if len(entry) > available:
+            marker = "\n[... detail omitted; full output is in logs ...]\n"
+            head = int((available - len(marker)) * 0.7)
+            tail = available - len(marker) - head
+            entry = entry[:head] + marker + entry[-tail:]
+            selected.insert(0, entry)
+            break
+        selected.insert(0, entry)
+        used += len(entry) + (2 if len(selected) > 1 else 0)
+    return "\n\n".join(selected)
 
 
-def _enforce_plain_text_summary(summary: str, max_sentences: int = 2) -> str:
-    """Collapse the summary to a plain-text sentence block."""
-    sentence_pattern = re.compile(r"[^.!?]+[.!?]", re.DOTALL)
-    sentences = [re.sub(r"\s+", " ", match).strip() for match in sentence_pattern.findall(summary)]
-
-    if sentences:
-        trimmed = " ".join(sentences[-max_sentences:])
-    else:
-        trimmed = re.sub(r"\s+", " ", summary).strip()
-
-    return trimmed
+def _clean_final_summary(summary: str) -> str:
+    """Remove presentation markup without discarding factual text."""
+    lines = []
+    for line in summary.splitlines():
+        line = re.sub(r"^\s*(?:#{1,6}\s*|[-*]\s+)", "", line).strip()
+        if line and not line.startswith("```"):
+            lines.append(line)
+    plain = " ".join(lines)
+    plain = re.sub(r"\*\*(.*?)\*\*", r"\1", plain)
+    return re.sub(r"\s+", " ", plain).strip()
 
 
 def generate_final_report(goal: str, outcome: str, reason: str, memory=None) -> str:
@@ -325,7 +337,7 @@ def generate_final_report(goal: str, outcome: str, reason: str, memory=None) -> 
         log_context_event("Final Summary Error", error_message, color=Palette.RED)
         return error_message
 
-    summary = _enforce_plain_text_summary(summary)
+    summary = _clean_final_summary(summary)
     log_context_event("Final Summary", summary, color=SUCCESS_COLOR)
     return summary
 

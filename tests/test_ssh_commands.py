@@ -32,6 +32,34 @@ class FakeShell:
 
 
 class CommandExecutionTests(unittest.TestCase):
+    def test_final_summary_preserves_versions_and_all_facts(self):
+        raw = (
+            "- **22** — SSH (OpenSSH 10.2p1 Ubuntu 2ubuntu3.5)\n"
+            "- **80** — HTTP (Python SimpleHTTPServer 0.6)\n"
+            "- **2222** — SSH (OpenSSH 9.2p1 Debian)"
+        )
+        cleaned = aracne._clean_final_summary(raw)
+        for fact in ("22", "10.2p1", "80", "0.6", "2222", "9.2p1"):
+            self.assertIn(fact, cleaned)
+        self.assertTrue(cleaned.startswith("22 — SSH"))
+
+    def test_report_context_keeps_port_table_and_drops_fingerprint(self):
+        previous = list(aracne.context_history)
+        try:
+            aracne.context_history[:] = [
+                "GOAL: Find services\nCOMMAND: nmap -sV host\nCOMMAND OUTPUT:\n"
+                "PORT STATE SERVICE VERSION\n22/tcp open ssh OpenSSH 10.2p1\n"
+                + "SF:raw-fingerprint-data\n" * 700
+                + "Nmap done: 1 IP address scanned\n"
+            ]
+            context = aracne._context_snapshot()
+        finally:
+            aracne.context_history[:] = previous
+        self.assertLessEqual(len(context), 8000)
+        self.assertIn("22/tcp open ssh OpenSSH 10.2p1", context)
+        self.assertIn("Nmap done:", context)
+        self.assertNotIn("SF:raw-fingerprint-data", context)
+
     def test_interactive_final_report_uses_prior_goal_memory(self):
         memory = InteractiveMemory()
         memory.record_action("find username", "whoami", {

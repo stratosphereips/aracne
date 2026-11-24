@@ -3,6 +3,21 @@
 from lib.utils import MODELS, call_model
 
 
+def report_relevant_output(output):
+    """Omit nmap's raw service fingerprint while retaining scan findings."""
+    filtered = []
+    omitted = False
+    for line in output.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith(("SF:", "SF-")) or "service unrecognized despite returning data" in stripped:
+            omitted = True
+            continue
+        filtered.append(line)
+    if omitted:
+        filtered.append("[Raw nmap service fingerprint omitted; full output is in logs.]")
+    return "\n".join(filtered)
+
+
 class InteractiveMemory:
     MAX_CONTEXT_CHARS = 9000
     MAX_OUTPUT_CHARS = 3000
@@ -35,7 +50,7 @@ class InteractiveMemory:
             self._compact()
 
     def record_action(self, goal, command, result):
-        output = result.get("output") or "<no output>"
+        output = report_relevant_output(result.get("output") or "<no output>")
         if len(output) > self.MAX_OUTPUT_CHARS:
             sample = output
             if len(output) > 12000:
