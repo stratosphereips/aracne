@@ -37,5 +37,5 @@ llm_providers:
     port: 11434
   cesnet:
     kind: openai
-    base_url: https://chat.ai.e-infra.cz/api
+    base_url: https://llm.ai.e-infra.cz/v1
     api_key_env: CESNET_API_KEY

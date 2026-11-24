@@ -27,6 +27,8 @@ MODEL_TEMPERATURES = {
     "summarizer": 1.0,
 }
 DEFAULT_TEMPERATURE = 1.0
+CESNET_BASE_URL = "https://llm.ai.e-infra.cz/v1"
+CESNET_LEGACY_BASE_URL = "https://chat.ai.e-infra.cz/api"
 PLANNER_SOURCE = "openai"
 SUMMARIZER_SOURCE = "openai"
 INTERPRETER_SOURCE = "local"
@@ -583,6 +585,8 @@ def load_environment(env_path, config_path=None):
                 key = key or os.getenv(str(env_var))
             if not key and provider_name == "cesnet":
                 key = os.getenv("CESNET_API_KEY")
+            if provider_name == "cesnet" and not key:
+                raise ValueError("Error: Missing CESNET_API_KEY for provider 'cesnet'. Use an API key from the e-INFRA chat account, not an OpenAI key.")
             if not key and not OPENAI_API_KEY:
                 raise ValueError(f"Error: Missing API key for provider '{provider_name}'.")
             provider_key = key or OPENAI_API_KEY
@@ -591,15 +595,17 @@ def load_environment(env_path, config_path=None):
             provider["api_key"] = provider_key
             OPENAI_PROVIDER_KEYS[provider_name] = provider_key
             base_url = provider.get("base_url") or provider.get("url")
-            if not base_url and provider_name == "cesnet":
-                base_url = "https://chat.ai.e-infra.cz/api"
+            if provider_name == "cesnet":
+                if not base_url or str(base_url).rstrip("/") == CESNET_LEGACY_BASE_URL:
+                    base_url = CESNET_BASE_URL
             if not base_url and provider_name == "openai":
                 base_url = OPENAI_BASE_URL
             if base_url:
                 provider["base_url"] = str(base_url).rstrip("/")
                 if provider_name == "openai" and not OPENAI_BASE_URL:
                     OPENAI_BASE_URL = provider["base_url"]
-            OPENAI_API_KEY = provider_key if provider_name == "openai" else OPENAI_API_KEY or provider_key
+            if provider_name == "openai":
+                OPENAI_API_KEY = provider_key
         elif kind == "ollama":
             base_url = provider.get("base_url") or provider.get("url")
             host = provider.get("host") or attack_config.get("ollama_url") or OLLAMA_URL
@@ -672,6 +678,12 @@ def call_openai(provider_name: str, prompt: str, model: str, temperature: float 
         return content
     except Exception as exc:
         message = str(exc).lower()
+        if provider_name == "cesnet" and ("403" in message or "permission" in message):
+            raise LLMProviderError(
+                provider_name,
+                f"CESNET denied chat access to model '{model}'. Check CESNET_API_KEY, model permissions, "
+                f"and the API base URL ({CESNET_BASE_URL}). Original error: {exc}",
+            ) from exc
         if provider_name == "cesnet" and ("not found" in message or "sleep" in message):
             raise LLMProviderError(
                 provider_name,
@@ -851,6 +863,12 @@ def _ensure_openai_models_available(provider_name: str, models: set[str]):
             client.models.retrieve(model=model)
         except Exception as exc:  # noqa: BLE001 - we want full context to bubble up
             failures.append(f"{model}: {exc}")
+            continue
+        if provider_name == "cesnet":
+            try:
+                call_openai(provider_name, "Reply OK.", model, temperature=1.0)
+            except LLMProviderError as exc:
+                failures.append(f"{model}: chat completion failed: {exc}")
 
     if failures:
         joined = "; ".join(failures)

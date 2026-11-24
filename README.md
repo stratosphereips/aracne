@@ -50,7 +50,7 @@ llm_providers:
     port: 11434
   cesnet:
     kind: openai
-    base_url: https://chat.ai.e-infra.cz/api
+    base_url: https://llm.ai.e-infra.cz/v1
     api_key_env: CESNET_API_KEY
 targets:                     # Named SSH target profiles
   ubuntu:
@@ -89,26 +89,23 @@ The `llm_providers` section declares connection details for each LLM backend. Pr
 
 ### CESNET OpenAI-Compatible Endpoint
 
-If you have access to the CESNET deployment you can reuse the OpenAI client without modifying the code by exporting the following variables:
+If you have access to the e-INFRA deployment, create an API key in the Chat AI account settings and export it:
 
 ```bash
 export CESNET_API_KEY="<your token>"
-export CESNET_BASE_URL="https://chat.ai.e-infra.cz/api"   # optional; default when CESNET_API_KEY is set
-# (optional) keep legacy tools happy
-export OPENAI_API_KEY="${CESNET_API_KEY}"
 ```
 
-- Models default to `qwen3-coder` unless overridden in the YAML config.
-- The agent automatically points the OpenAI SDK at the CESNET base URL when `CESNET_API_KEY` is present.
+- Set `planner_source` or `interpreter_source` to `cesnet` in YAML. ARACNE uses `https://llm.ai.e-infra.cz/v1` by default and accepts the old Chat AI URL in older configs by redirecting it to the current endpoint.
+- Choose a model listed for your key. Stable aliases such as `glm`, `mini`, and `coder` are available; the exact model list can change.
 
 Example curl call:
 
 ```bash
-curl https://chat.ai.e-infra.cz/api/v1/chat/completions \
+curl https://llm.ai.e-infra.cz/v1/chat/completions \
   -H "Authorization: Bearer ${CESNET_API_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
-        "model": "qwen3-coder",
+        "model": "glm",
         "messages": [
           {"role": "system", "content": "You are a helpful assistant."},
           {"role": "user", "content": "Hello from CESNET!"}
@@ -116,7 +113,7 @@ curl https://chat.ai.e-infra.cz/api/v1/chat/completions \
       }'
 ```
 
-In your ARACNE YAML, set any role to the `cesnet` provider (for example `planner_source: "cesnet"`) and choose a compatible model such as `qwen3-coder`.
+List models available to your key with `curl -H "Authorization: Bearer ${CESNET_API_KEY}" https://llm.ai.e-infra.cz/v1/models`.
 
 ## Usage
 
