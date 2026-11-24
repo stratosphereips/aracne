@@ -858,17 +858,28 @@ def _ensure_openai_models_available(provider_name: str, models: set[str]):
     client = _get_openai_client(provider_name)
     failures: list[str] = []
 
+    if provider_name == "cesnet":
+        try:
+            available = {item.id for item in client.models.list().data}
+        except Exception as exc:
+            raise RuntimeError(f"CESNET model list failed: {exc}") from exc
+        for model in sorted(models):
+            if model not in available:
+                failures.append(f"{model}: not listed for this CESNET API key")
+                continue
+            try:
+                call_openai(provider_name, "Reply OK.", model, temperature=1.0)
+            except LLMProviderError as exc:
+                failures.append(f"{model}: chat completion failed: {exc}")
+        if failures:
+            raise RuntimeError("OpenAI connectivity check failed for: " + "; ".join(failures))
+        return
+
     for model in sorted(models):
         try:
             client.models.retrieve(model=model)
         except Exception as exc:  # noqa: BLE001 - we want full context to bubble up
             failures.append(f"{model}: {exc}")
-            continue
-        if provider_name == "cesnet":
-            try:
-                call_openai(provider_name, "Reply OK.", model, temperature=1.0)
-            except LLMProviderError as exc:
-                failures.append(f"{model}: chat completion failed: {exc}")
 
     if failures:
         joined = "; ".join(failures)

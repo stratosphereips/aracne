@@ -40,7 +40,7 @@ class CesnetProviderTests(unittest.TestCase):
                 utils.load_environment(None, path)
 
     def test_preflight_checks_actual_completion(self):
-        client = SimpleNamespace(models=SimpleNamespace(retrieve=lambda model: None))
+        client = SimpleNamespace(models=SimpleNamespace(list=lambda: SimpleNamespace(data=[SimpleNamespace(id="glm-5.3")])))
         with patch.object(utils, "_get_openai_client", return_value=client), patch.object(
             utils, "call_openai", return_value="OK"
         ) as completion:
@@ -48,12 +48,19 @@ class CesnetProviderTests(unittest.TestCase):
         completion.assert_called_once_with("cesnet", "Reply OK.", "glm-5.3", temperature=1.0)
 
     def test_preflight_reports_completion_denial(self):
-        client = SimpleNamespace(models=SimpleNamespace(retrieve=lambda model: None))
+        client = SimpleNamespace(models=SimpleNamespace(list=lambda: SimpleNamespace(data=[SimpleNamespace(id="glm-5.3")])))
         with patch.object(utils, "_get_openai_client", return_value=client), patch.object(
             utils, "call_openai", side_effect=utils.LLMProviderError("cesnet", "HTTP 403")
         ):
             with self.assertRaisesRegex(RuntimeError, "chat completion failed: HTTP 403"):
                 utils._ensure_openai_models_available("cesnet", {"glm-5.3"})
+
+    def test_preflight_rejects_unlisted_model_without_completion(self):
+        client = SimpleNamespace(models=SimpleNamespace(list=lambda: SimpleNamespace(data=[])))
+        with patch.object(utils, "_get_openai_client", return_value=client), patch.object(utils, "call_openai") as completion:
+            with self.assertRaisesRegex(RuntimeError, "not listed for this CESNET API key"):
+                utils._ensure_openai_models_available("cesnet", {"glm-5.3"})
+        completion.assert_not_called()
 
     def test_403_error_identifies_cesnet_access_problem(self):
         def deny(**kwargs):
