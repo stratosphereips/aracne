@@ -1,6 +1,16 @@
 from openai import OpenAI
+import re
 
 from lib.utils import MODELS, call_model, load_prompt
+
+
+def normalize_command(command):
+    """Keep nmap output usable when the model adds a fragile Python formatter."""
+    match = re.match(r"^\s*(nmap\b[^|]*)\s*\|\s*python(?:3(?:\.\d+)?)?\s+-c\b", command, re.DOTALL)
+    if not match:
+        return command
+    scan = re.sub(r"(?<!\S)-oX\s+-(?=\s|$)", "", match.group(1))
+    return scan.strip()
 
 def get_command_from_ollama(instruction):
 
@@ -20,7 +30,7 @@ def get_command_from_ollama(instruction):
 
     # If there is an error creating the command, the exception will rise.
     # command is only returned when it has been successfully assigned
-    return command
+    return normalize_command(command)
 
 
 def interactive_translation_session():

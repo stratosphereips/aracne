@@ -357,17 +357,26 @@ def load_goals(goals_path: str | Path = DEFAULT_GOALS_FILE) -> list[str]:
 
 
 COMMAND_TIMEOUT_SECONDS = 300
+NMAP_TIMEOUT_SECONDS = 1800
 COMMAND_POLL_INTERVAL = 0.1
 
 
-def send_ssh_command(shell, command, action_count, timeout=COMMAND_TIMEOUT_SECONDS, poll_interval=COMMAND_POLL_INTERVAL):
+def command_timeout_seconds(command):
+    """Allow network scans more time than ordinary shell commands."""
+    return NMAP_TIMEOUT_SECONDS if re.search(r"(?<![\w./-])nmap(?=\s|$)", command) else COMMAND_TIMEOUT_SECONDS
+
+
+def send_ssh_command(shell, command, action_count, timeout=None, poll_interval=COMMAND_POLL_INTERVAL):
     """Execute a command over an interactive SSH shell with streaming and exit diagnostics."""
+    if timeout is None:
+        timeout = command_timeout_seconds(command)
     result = {
         "output": "",
         "exit_status": None,
         "timed_out": False,
         "duration": 0.0,
         "error": None,
+        "timeout_seconds": timeout,
     }
 
     try:
@@ -391,8 +400,20 @@ def send_ssh_command(shell, command, action_count, timeout=COMMAND_TIMEOUT_SECON
         sentinel_found = False
         start_ts = time.monotonic()
         deadline = start_ts + timeout if timeout else None
+        next_wait_notice = start_ts + 30 if timeout == NMAP_TIMEOUT_SECONDS else None
 
         while True:
+            now = time.monotonic()
+            if deadline and now > deadline:
+                result["timed_out"] = True
+                try:
+                    shell.send("\x03")  # Attempt to interrupt the running command.
+                except Exception:
+                    pass
+                break
+            if next_wait_notice and now >= next_wait_notice:
+                print_status("⏳", f"Scan still running ({int(now - start_ts)}s elapsed)...", Palette.BLUE)
+                next_wait_notice = now + 60
             if shell.recv_ready():
                 chunk = shell.recv(65535)
                 if not chunk:
@@ -404,13 +425,6 @@ def send_ssh_command(shell, command, action_count, timeout=COMMAND_TIMEOUT_SECON
                     sentinel_found = True
                     break
             else:
-                if deadline and time.monotonic() > deadline:
-                    result["timed_out"] = True
-                    try:
-                        shell.send("\x03")  # Attempt to interrupt the running command.
-                    except Exception:
-                        pass
-                    break
                 time.sleep(poll_interval)
 
         # Flush any remaining prompt data quickly once the sentinel has been seen.
@@ -738,7 +752,7 @@ def execute_agent(goal, summarize=False):
             if command_result["timed_out"]:
                 print_status(
                     "⏱️",
-                    f"Command timed out after {COMMAND_TIMEOUT_SECONDS}s.",
+                    f"Command timed out after {command_result['timeout_seconds']}s.",
                     Palette.RED,
                 )
                 session_outcome = "timeout"

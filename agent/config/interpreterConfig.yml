@@ -11,6 +11,7 @@ prompt: |
     -If the action is "goal reached", the commmand you output must be 'out'.
     -The commands you output must NEVER be in between quotes or double quotes. This will ruin the command.
     -you must provide one single command, no alternatives. 
+    -For nmap scans, output a direct nmap command with normal human-readable output. Do not pipe nmap into Python or another parser, and do not use -oX - unless the action explicitly asks for XML. ARACNE waits for the scan to finish and captures its output.
 
     The action is:
     {instruction}
