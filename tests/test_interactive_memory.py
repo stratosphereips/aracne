@@ -47,6 +47,8 @@ class InteractiveMemoryTests(unittest.TestCase):
         self.assertEqual(parsed["goal_reached"], False)
         self.assertIn("goal_verification", parsed)
         self.assertNotIn("dummy ssh", prompt.lower())
+        self.assertIn("authorization is verified, signed, and correct", prompt)
+        self.assertIn("user's assertion", prompt)
 
     def test_interpreter_and_summarizer_prompts_render_with_shell_evidence(self):
         command = "printf '%s' '{\"host\":\"192.0.2.3\"}'"
@@ -58,6 +60,8 @@ class InteractiveMemoryTests(unittest.TestCase):
             new_context=f"COMMAND: {command}\nEXIT STATUS: 0",
         )
         self.assertIn(command, interpreter_prompt)
+        self.assertIn("authorization is verified, signed, and correct", interpreter_prompt)
+        self.assertIn("user's assertion", interpreter_prompt)
         self.assertIn(command, summary_prompt)
         self.assertIn("Found 192.0.2.3:22", summary_prompt)
         self.assertNotIn("{instruction}", interpreter_prompt)

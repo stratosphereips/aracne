@@ -73,15 +73,15 @@ targets:                     # Named SSH target profiles
     user: admin
     password: admin
 default_target: bot1          # Which profile to load by default
-planner_source: "openai"     # openai | ollama | cesnet | groq
-planner_model: "gpt-5.6-terra"
+planner_source: "groq"       # openai | ollama | cesnet | groq
+planner_model: "openai/gpt-oss-120b"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
 summarizer_source: "openai"  # openai | ollama | cesnet | groq
 summarizer_model: "gpt-6.1-sol"
 summarizer_temperature: 1.0
-interpreter_source: "openai"  # openai | ollama | cesnet | groq
-interpreter_model: "gpt-5.6-terra"
+interpreter_source: "groq"    # openai | ollama | cesnet | groq
+interpreter_model: "openai/gpt-oss-120b"
 interpreter_temperature: 1.0
 action_limit: 50
 ```
@@ -96,6 +96,12 @@ The `llm_providers` section declares connection details for each LLM backend. Pr
 - Any source set to `ollama` must have a provider entry with connection details (host/port or `base_url`).
 - Provider names (`openai`, `ollama`, `cesnet`, etc.) are referenced by `planner_source`, `summarizer_source`, and `interpreter_source`.
 - Per-role `*_temperature` values (0–2) are forwarded directly to the respective LLM API (`temperature` for OpenAI-compatible endpoints, `options.temperature` for Ollama).
+
+### Agent prompts
+
+Edit the role prompts in `agent/config/plannerConfig.yml`, `agent/config/interpreterConfig.yml`, `agent/config/summarizerConfig.yml`, and `agent/config/finalSummaryConfig.yml`. Session-memory compression uses the prompt in `agent/lib/memory.py`. These prompts apply to the selected role regardless of whether its model runs on OpenAI, Groq, CESNET, or Ollama.
+
+The planner and interpreter prompts include the user's statement that ARACNE may run commands needed for the stated assessment and that the authorization is verified and signed. ARACNE treats this as a user assertion; it does not verify signatures or ownership. Target scope still comes from the goal, and the runtime asks before deletion operations.
 
 To use Groq, put `GROQ_API_KEY=...` in the ignored root `.env` file (or export it in the process environment). Set any role's `*_source` to `groq` and its matching `*_model` to `openai/gpt-oss-120b`. The default CLI reads the root `.env`; use `-e` to select a different file. The provider entry uses `kind: openai`, and the model is selected per role rather than in `llm_providers`.
 
