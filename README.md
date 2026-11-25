@@ -87,6 +87,21 @@ The `llm_providers` section declares connection details for each LLM backend. Pr
 - Provider names (`openai`, `ollama`, `cesnet`, etc.) are referenced by `planner_source`, `summarizer_source`, and `interpreter_source`.
 - Per-role `*_temperature` values (0–2) are forwarded directly to the respective LLM API (`temperature` for OpenAI-compatible endpoints, `options.temperature` for Ollama).
 
+### OpenAI model comparison
+
+In the user-provided comparison dated November 25, 2026, GPT-6.1 Sol (`gpt-6.1-sol`) is the first choice for balancing intelligence and cost. For large-scale experiments, the comparison favors models with a larger reported daily token pool over a more capable model when throughput matters most.
+
+| API model ID | Input $/1M | Output $/1M | Reported free tokens/day* | Best for |
+| --- | ---: | ---: | ---: | --- |
+| `gpt-6-astra` | $10 | $50 | 1M | Maximum intelligence |
+| `gpt-6.1-sol` | $2 | $10 | 1M | Intelligence/cost balance |
+| `gpt-5.6-sol` | $4 | $20 | 1M | Complex reasoning |
+| `gpt-5.6-terra` | $2 | $12 | 10M | Large-scale experiments |
+| `gpt-5.6-luna` | $0.20 | $1.20 | 10M | Cheap general processing |
+| `gpt-6-luna` | $0.10 | $0.50 | 1M | Extremely cheap processing |
+
+*The daily token amounts come from the supplied comparison; they are not a universal OpenAI API entitlement. Check the allowance for your account or offer. Prices are standard text-token rates; check [OpenAI API pricing](https://developers.openai.com/api/docs/pricing) for current rates and other processing tiers.
+
 ### CESNET OpenAI-Compatible Endpoint
 
 If you have access to the e-INFRA deployment, create an API key in the Chat AI account settings and export it:
