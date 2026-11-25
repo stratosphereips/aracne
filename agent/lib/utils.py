@@ -664,6 +664,12 @@ def _get_openai_client(provider_name: str) -> OpenAI:
         base_url = provider.get("base_url") or OPENAI_BASE_URL
         if base_url:
             kwargs["base_url"] = str(base_url).rstrip("/")
+        # The OpenAI SDK defaults to long request timeouts and automatic
+        # retries. A slow OpenAI-compatible endpoint (notably CESNET) could
+        # therefore leave an interactive session waiting for many minutes.
+        # Keep requests bounded and let the caller handle a timeout promptly.
+        kwargs["timeout"] = float(provider.get("timeout_seconds", 120))
+        kwargs["max_retries"] = int(provider.get("max_retries", 0))
         client = OpenAI(**kwargs)
         OPENAI_CLIENTS[provider_name] = client
     return client

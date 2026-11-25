@@ -123,6 +123,8 @@ llm_providers:
     kind: openai
     base_url: https://llm.ai.e-infra.cz/v1
     api_key_env: CESNET_API_KEY
+    timeout_seconds: 90
+    max_retries: 0
   groq:
     kind: openai
     base_url: https://api.groq.com/openai/v1

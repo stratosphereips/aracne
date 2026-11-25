@@ -69,6 +69,25 @@ class CesnetProviderTests(unittest.TestCase):
                 utils._ensure_openai_models_available("cesnet", {"glm-5.3"})
         completion.assert_not_called()
 
+    def test_cesnet_client_uses_bounded_request_timeout_without_retries(self):
+        utils.OPENAI_CLIENTS.pop("cesnet", None)
+        provider = {
+            "api_key": "test-key",
+            "base_url": utils.CESNET_BASE_URL,
+            "timeout_seconds": 90,
+            "max_retries": 0,
+        }
+        client = object()
+        try:
+            with patch.object(utils, "_get_provider", return_value=provider), patch.object(
+                utils, "OpenAI", return_value=client
+            ) as openai_client:
+                self.assertIs(utils._get_openai_client("cesnet"), client)
+            self.assertEqual(openai_client.call_args.kwargs["timeout"], 90)
+            self.assertEqual(openai_client.call_args.kwargs["max_retries"], 0)
+        finally:
+            utils.OPENAI_CLIENTS.pop("cesnet", None)
+
     def test_403_error_identifies_cesnet_access_problem(self):
         def deny(**kwargs):
             raise RuntimeError("Error code: 403 - permission denied")
