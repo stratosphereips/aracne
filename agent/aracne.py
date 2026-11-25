@@ -742,6 +742,7 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
    print_status("✅", "SSH session ready.", Palette.GREEN, bold=True)
 
    action_number = 1
+   consecutive_replans = 0
    summary = None
 
    print_status("🧠", "Planner is crafting the initial plan...", Palette.MAGENTA)
@@ -812,10 +813,13 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
                 break
 
             if command and interpreter_requested_planner(command):
+                consecutive_replans += 1
                 note = (
-                    "The interpreter could not produce an assessment command and requested replanning. "
-                    "No command was executed. Choose a step supported by the supplied goal and context. "
-                    "If essential details are missing, ask the human through the planner."
+                    "The interpreter could not produce an assessment command. No command was executed. "
+                    f"Unexecutable step: {(step_instruction or '')[:500]}. "
+                    f"Interpreter response: {command[:500]}. "
+                    "Do not repeat this step. Choose a different actionable step with known targets, "
+                    "or report that essential details are missing."
                 )
                 print_status("🔁", "Interpreter requested planner guidance; no command was run.", Palette.MAGENTA)
                 context_history.append(note)
@@ -826,6 +830,11 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
                         "exit_status": None,
                         "timed_out": False,
                     })
+                if consecutive_replans >= 2:
+                    print_status("⛔", "Planner repeated an unexecutable step; stopping this goal.", Palette.YELLOW)
+                    session_outcome = "incomplete"
+                    session_reason = "Two consecutive interpreter replanning requests without an executable step."
+                    break
                 action_number += 1
                 context = memory.context() if memory else "\n\n".join(context_history)
                 plan = generate_plan(goal, context)
@@ -838,6 +847,8 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
                     session_reason = "Planner could not produce an actionable step after interpreter replanning."
                     break
                 continue
+
+            consecutive_replans = 0
 
             print_status("📝", f"Step: {step_instruction}", Palette.WHITE)
             if command:

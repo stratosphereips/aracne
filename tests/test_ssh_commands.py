@@ -33,6 +33,24 @@ class FakeShell:
 
 
 class CommandExecutionTests(unittest.TestCase):
+    def test_repeated_interpreter_replan_stops_after_one_planner_retry(self):
+        client = types.SimpleNamespace(close=lambda: None)
+        shell = FakeShell([])
+        with patch.object(aracne, "action_limit", 50), patch.object(
+            aracne, "connect_ssh", return_value=(client, shell)
+        ), patch.object(
+            aracne, "generate_plan", return_value={"steps": ["Scan an unspecified target"]}
+        ) as planner, patch.object(
+            aracne, "fetch_command_from_plan", return_value=("__ARACNE_REPLAN__", "Scan an unspecified target")
+        ) as interpreter, patch.object(
+            aracne, "send_ssh_command"
+        ) as send, patch.object(aracne, "conclude_session"):
+            outcome = aracne.execute_agent("Find hosts")
+        self.assertEqual(outcome, "incomplete")
+        self.assertEqual(planner.call_count, 2)
+        self.assertEqual(interpreter.call_count, 2)
+        send.assert_not_called()
+
     def test_load_session_flag_defaults_to_latest(self):
         with patch.object(sys, "argv", ["aracne.py", "--load-session"]):
             self.assertEqual(aracne.parse_arguments().load_session, "latest")
