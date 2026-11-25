@@ -1054,12 +1054,17 @@ def prompt_new_goal(history=None, memory=None):
             if memory is None:
                 print_status("ℹ️", "There is no saved session context to compress.", Palette.YELLOW)
             else:
-                before, after = memory.compress_context()
-                print_status(
-                    "🧠",
-                    f"Session context compressed for the current goal ({before} → {after} characters).",
-                    Palette.CYAN,
-                )
+                before, after, status = memory.compress_context()
+                if status == "compressed":
+                    print_status(
+                        "🧠",
+                        f"Session context compressed for the current goal ({before} → {after} characters).",
+                        Palette.CYAN,
+                    )
+                elif status == "unavailable":
+                    print_status("⚠️", "Compression failed; session context was kept unchanged.", Palette.YELLOW)
+                else:
+                    print_status("ℹ️", f"Session context kept unchanged ({before} characters; compression would not make it smaller).", Palette.YELLOW)
             continue
         if goal:
             if history is not None:

@@ -144,7 +144,7 @@ class InteractiveMemory:
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
 
-    def _compress(self, text, purpose, goal=None):
+    def _compress(self, text, purpose, goal=None, fallback=True):
         goal = (goal or self.current_goal or "unspecified")[:500]
         prompt = (
             "Update ARACNE's evidence record for a continuing terminal session. "
@@ -167,6 +167,8 @@ class InteractiveMemory:
                 return response.strip()[:self.MAX_SUMMARY_CHARS]
         except Exception:
             pass
+        if not fallback:
+            return None
         # A provider failure must not stop the interactive session.
         fallback_prefix = f"CURRENT GOAL: {goal}\n"
         return fallback_prefix + text[-(self.MAX_SUMMARY_CHARS - len(fallback_prefix)):]
@@ -175,15 +177,24 @@ class InteractiveMemory:
         """Force older and recent session context into one goal-focused summary."""
         before = len(self.context())
         if not before:
-            return before, before
-        self.summary = self._compress(
+            return before, before, "empty"
+        if before < 1024:
+            return before, before, "already_small"
+        candidate = self._compress(
             self.context(),
             "manual interactive /compress request",
             goal=self.current_goal,
+            fallback=False,
         )
+        if not candidate:
+            return before, before, "unavailable"
+        candidate_size = len("EARLIER SESSION SUMMARY:\n") + len(candidate)
+        if candidate_size >= before:
+            return before, before, "not_shorter"
+        self.summary = candidate
         self.recent.clear()
         self.save()
-        return before, len(self.context())
+        return before, len(self.context()), "compressed"
 
     def start_goal(self, goal):
         self.current_goal = goal
