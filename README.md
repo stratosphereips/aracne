@@ -33,7 +33,7 @@ pip install -r requirements.txt
 cp env_EXAMPLE .env
 ```
 
-Populate `.env` with `CESNET_API_KEY` for the default CESNET models and `BOT1_SSH_PASSWORD` for the default SSH target. SSH target profiles are configured in `agent/config/AttackConfig.yaml`; `OPENAI_API_KEY` is needed when an enabled role uses OpenAI (for example, when summaries are enabled with the default summarizer).
+Populate `.env` with `OPENAI_API_KEY` for the default OpenAI models and `BOT1_SSH_PASSWORD` for the default SSH target. Add `CESNET_API_KEY` when using CESNET. SSH target profiles are configured in `agent/config/AttackConfig.yaml`.
 
 ## Configuration
 
@@ -73,15 +73,15 @@ targets:                     # Named SSH target profiles
     user: admin
     password: admin
 default_target: bot1          # Which profile to load by default
-planner_source: "cesnet"     # openai | ollama | cesnet | groq
-planner_model: "kimi-k3.1-pro"
+planner_source: "openai"     # openai | ollama | cesnet | groq
+planner_model: "gpt-6-luna"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
 summarizer_source: "openai"  # openai | ollama | cesnet | groq
 summarizer_model: "gpt-6.1-sol"
 summarizer_temperature: 1.0
-interpreter_source: "cesnet"  # openai | ollama | cesnet | groq
-interpreter_model: "kimi-k3.1-pro"
+interpreter_source: "openai"  # openai | ollama | cesnet | groq
+interpreter_model: "gpt-6-luna"
 interpreter_temperature: 1.0
 action_limit: 50
 ```
@@ -205,8 +205,8 @@ Interactive goals share session memory: recent commands and results stay availab
 
 To continue a saved session, run `python aracne.py --load-session` (or `--load-session latest`). ARACNE loads the history and waits for a new goal before contacting the LLM. Add `-g "new goal"` to provide that goal immediately. You can also pass a session JSON path, an experiment directory, or its `context.log` to `--load-session`. Session files are stored in `logs/sessions/`; `latest` imports the newest archived experiment if no session file exists.
 
-Edit [agent/config/commandApproval.yaml](agent/config/commandApproval.yaml) to choose which executables ask for permission. Add a name to `always_ask` to require approval. To allow one, remove it from `always_ask` and add it to `allow_without_approval`. Set `ask_unknown_commands: false` if unlisted executables should run without review. ARACNE reloads this file before each command. Read-only shell loops and conditionals, `ip` display commands, and output sent to `/dev/null` run without approval. A chain containing a reviewed command still asks. Writing files, changing network configuration, process substitution, and nmap scripts or output files require approval. Declining stops the command and returns to the new-goal prompt without waiting for a final summary.
-If a plan, generated command, or command output asks for human or system-owner confirmation, ARACNE asks you directly. An explicit `yes` is recorded as user approval in the planner context before work continues; any other answer stops the current goal.
+ARACNE asks for approval before recognizable deletion operations, including `rm`, `find -delete`, `git clean`, and HTTP `DELETE` requests. Browsing and fetching with `curl`, `wget`, `lynx`, `w3m`, or similar tools runs without an approval prompt. Other commands, redirects, shell loops, and unknown executables also run without approval by default. Edit [agent/config/commandApproval.yaml](agent/config/commandApproval.yaml) to add or remove executable names in `always_ask`; ARACNE reloads the file before each command. Set `ask_unknown_commands: true` only if you want unknown executables reviewed. Declining a deletion returns to the new-goal prompt.
+If a plan, generated command, or command output specifically asks for human or system-owner confirmation before deletion, ARACNE asks you directly. An explicit `yes` is recorded as user approval before work continues; any other answer stops the current goal.
 
 ### Switching Models
 

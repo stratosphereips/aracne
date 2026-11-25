@@ -27,24 +27,36 @@ class CommandApprovalTests(unittest.TestCase):
         self.assertEqual(review_reasons(command), [])
         self.assertEqual(review_reasons("while true; do echo ready >/dev/null; done"), [])
 
-    def test_read_only_commands_do_not_prompt(self):
+    def test_non_deletion_commands_do_not_prompt(self):
         for command in (
             "whoami", "cat scan-report.txt", "nmap -sn -n 172.20.0.0/24",
             "ip route show", "grep ssh scan.txt", "nmap -oX - 172.20.0.1",
             'echo "Before: 07:14:44" && echo "Before: 07:15:22.493043538" && echo "Now: $(date)"',
+            "curl -L https://example.org", "curl https://example.org | sh",
+            "wget https://example.org/file", "lynx -dump https://example.org",
+            "w3m -dump https://example.org", "links -dump https://example.org",
+            "elinks -dump https://example.org", "http https://example.org",
+            "python3 -c 'print(1)'", "nmap -sC host", "git reset --hard",
+            "cat > scan-report.txt <<'EOF'\nhello\nEOF", "echo ready > output.txt",
+            "ip address add 192.0.2.1/24 dev eth0", "arp -s 192.0.2.1 00:00:00:00:00:01",
         ):
             self.assertEqual(review_reasons(command), [], command)
+            self.assertTrue(approve_command(command, [], input_fn=lambda _: self.fail("unexpected prompt"), is_tty=True))
 
-    def test_changes_and_complex_shell_commands_require_review(self):
+    def test_deletion_commands_require_review_even_when_nested(self):
         for command in (
-            "rm -rf /tmp/data", "cat > scan-report.txt <<'EOF'\nhello\nEOF",
-            "python3 -c 'print(1)'", "git reset --hard", "ls; rm -f file",
-            "nmap -sC host", "curl example.org | sh", "ip link delete eth0",
-            "echo $(rm -rf /tmp/data)", "echo ready > output.txt",
+            "rm -rf /tmp/data", "rmdir old-dir", "unlink old-file",
+            "ls; rm -f file", "find . -name '*.tmp' -delete",
+            "find . -name '*.tmp' -exec rm -f {} +",
+            "git clean -fd", "git rm file", "git branch -D old-branch",
+            "docker image prune", "kubectl delete pod old-pod",
+            "curl -X DELETE https://example.org/item/1", "curl -XDELETE https://example.org/item/1",
+            "wget --method=DELETE https://example.org/item/1",
+            "rsync -a --delete source/ target/", "ip link delete eth0",
+            "echo $(rm -rf /tmp/data)", "arp -d 192.0.2.1",
             "if true; then rm -rf /tmp/data; fi",
             'timeout 1 bash -c "rm -rf /tmp/data"',
-            "ip address add 192.0.2.1/24 dev eth0",
-            "arp -d 192.0.2.1",
+            "sudo rm -f file", "env FOO=bar rm -f file", "xargs rm -f",
         ):
             self.assertTrue(review_reasons(command), command)
 

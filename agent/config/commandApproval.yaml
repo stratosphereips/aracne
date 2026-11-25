@@ -2,46 +2,16 @@
 # Executable names are case-insensitive; paths are matched by basename.
 # Commands in always_ask take precedence over allow_without_approval.
 always_ask:
-  - apt
-  - apt-get
-  - bash
-  - chmod
-  - chown
-  - chgrp
-  - cp
-  - dd
-  - docker
-  - eval
-  - exec
-  - fdisk
-  - kill
-  - killall
-  - mkfs
-  - mount
-  - mv
-  - parted
-  - passwd
-  - pkill
-  - reboot
   - rm
   - rmdir
-  - service
-  - setfacl
-  - sh
+  - unlink
   - shred
-  - shutdown
-  - sudo
-  - su
-  - systemctl
-  - tee
-  - truncate
-  - ufw
-  - umount
-  - useradd
   - userdel
-  - usermod
-  - wipefs
-  - zsh
+  - groupdel
+  - deluser
+  - delgroup
+  - trash
+  - trash-put
 
 allow_without_approval:
   - "["
@@ -98,5 +68,5 @@ allow_without_approval:
   - whoami
   - which
 
-# Unknown executables are reviewed by default. Set false to allow them.
-ask_unknown_commands: true
+# Unknown executables run without review. Set true to review them.
+ask_unknown_commands: false

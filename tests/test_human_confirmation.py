@@ -18,35 +18,37 @@ from lib.command_approval import (
 
 
 class HumanConfirmationTests(unittest.TestCase):
-    def test_detects_owner_approval_requests(self):
+    def test_only_deletion_requests_trigger_owner_approval(self):
         for message in (
-            "Run the scan and have the system owner confirm before continuing.",
-            "Please get approval from the administrator.",
-            "Awaiting human confirmation.",
-            "Owner approval required before the next step.",
-            "Ask the user to authorize this change.",
+            "Have the system owner confirm before deleting the file.",
+            "Please get approval from the administrator to remove the old account.",
+            "Awaiting human confirmation to erase the report.",
         ):
             self.assertTrue(requests_human_confirmation(message), message)
         for message in (
+            "Run the scan and have the system owner confirm before continuing.",
+            "Please get approval from the administrator before using curl.",
+            "Owner approval required before the next step.",
             "The system owner is alice.",
             "User confirmed the scan completed yesterday.",
             "The scan found an administrator login page.",
+            "A file was deleted yesterday. " + ("Other output. " * 30) + "Have the owner confirm this scan.",
         ):
             self.assertFalse(requests_human_confirmation(message), message)
 
     def test_prompt_requires_explicit_yes_and_terminal(self):
-        message = "Have the system owner confirm."
+        message = "Have the system owner confirm before deleting the file."
         self.assertFalse(request_human_confirmation(message, input_fn=lambda _: "yes", is_tty=False))
         self.assertFalse(request_human_confirmation(message, input_fn=lambda _: "y", is_tty=True))
         self.assertTrue(request_human_confirmation(message, input_fn=lambda _: "yes", is_tty=True))
         self.assertFalse(request_human_confirmation(message, input_fn=lambda _: (_ for _ in ()).throw(EOFError), is_tty=True))
 
     def test_excerpt_finds_request_after_large_output(self):
-        output = ("unrelated output\n" * 100) + "Have the system owner confirm this scan before proceeding."
+        output = ("unrelated output\n" * 100) + "Have the system owner confirm before deleting this file."
         self.assertIn("system owner confirm", confirmation_excerpt(output))
         self.assertLessEqual(len(confirmation_excerpt(output)), 500)
 
-    def test_planner_request_asks_before_interpreter_and_continues_with_approval_context(self):
+    def test_deletion_request_asks_before_interpreter_and_continues_with_approval_context(self):
         client = types.SimpleNamespace(close=lambda: None)
         shell = types.SimpleNamespace(send=lambda value: None)
         plan_contexts = []
@@ -54,12 +56,12 @@ class HumanConfirmationTests(unittest.TestCase):
         def generate_plan(goal, context=None, fresh=False):
             plan_contexts.append(context)
             if fresh:
-                return {"steps": ["Have the system owner confirm before checking the hostname."]}
-            return {"steps": ["Check the hostname."]} if len(plan_contexts) == 2 else "goal reached"
+                return {"steps": ["Have the system owner confirm before deleting the old file."]}
+            return {"steps": ["Delete the old file."]} if len(plan_contexts) == 2 else "goal reached"
 
         with patch.object(aracne, "connect_ssh", return_value=(client, shell)), patch.object(
             aracne, "generate_plan", side_effect=generate_plan
-        ), patch.object(aracne.interpreter, "get_command_from_ollama", return_value="hostname") as interpret, patch.object(
+        ), patch.object(aracne.interpreter, "get_command_from_ollama", return_value="rm -f old-file") as interpret, patch.object(
             aracne, "request_human_confirmation", return_value=True
         ) as ask, patch.object(aracne, "approve_command", return_value=True), patch.object(
             aracne, "send_ssh_command", return_value={
@@ -72,15 +74,15 @@ class HumanConfirmationTests(unittest.TestCase):
             aracne.execute_agent("Check hostname")
 
         ask.assert_called_once()
-        interpret.assert_called_once_with("Check the hostname.")
+        interpret.assert_called_once_with("Delete the old file.")
         send.assert_called_once()
-        self.assertEqual(send.call_args.args[1], "hostname")
+        self.assertEqual(send.call_args.args[1], "rm -f old-file")
         self.assertIn("User approved the requested action.", plan_contexts[1])
 
     def test_command_output_request_prompts_and_decline_stops_goal(self):
         client = types.SimpleNamespace(close=lambda: None)
         shell = types.SimpleNamespace(send=lambda value: None)
-        output = "Result available. Have the system owner confirm before proceeding."
+        output = "Result available. Have the system owner confirm before deleting the old file."
         with patch.object(aracne, "connect_ssh", return_value=(client, shell)), patch.object(
             aracne, "generate_plan", return_value={"steps": ["Check status"]}
         ) as generate, patch.object(
@@ -119,7 +121,7 @@ class HumanConfirmationTests(unittest.TestCase):
         ), patch.object(aracne, "request_human_confirmation", return_value=True) as ask, patch.object(
             aracne, "approve_command", return_value=True
         ), patch.object(aracne, "send_ssh_command", return_value={
-            "output": "Please have the system owner confirm before proceeding.",
+            "output": "Please have the system owner confirm before deleting the old file.",
             "exit_status": 0, "timed_out": False, "duration": 0.1, "error": None,
         }), patch.object(aracne, "conclude_session") as conclude, patch.object(
             aracne, "action_limit", 5

@@ -1,7 +1,7 @@
 goal: null
 
-planner_source: cesnet
-planner_model: kimi-k3.1-pro
+#planner_source: cesnet
+#planner_model: kimi-k3.1-pro
 # CESNET alternatives from the README ranking; uncomment one model at a time.
 #planner_model: glm-5.3
 #planner_model: deepseek-v4.1-flash-thinking
@@ -15,13 +15,13 @@ planner_model: kimi-k3.1-pro
 #planner_model: gpt-oss-120b
 #planner_model: mistral-medium-3.5
 #--
-#planner_source: openai
+planner_source: openai
 #planner_model: gpt-6.1-sol
 #planner_model: gpt-6-astra
 #planner_model: gpt-5.6-sol
 #planner_model: gpt-5.6-terra
 #planner_model: gpt-5.6-luna
-#planner_model: gpt-6-luna
+planner_model: gpt-6-luna
 #--
 #planner_source: groq
 #planner_model: openai/gpt-oss-120b
@@ -60,8 +60,8 @@ summarizer_model: gpt-6.1-sol
 #summarizer_model: openai/gpt-oss-120b
 summarizer_temperature: 1.0
 
-interpreter_source: cesnet
-interpreter_model: kimi-k3.1-pro
+#interpreter_source: cesnet
+#interpreter_model: kimi-k3.1-pro
 # CESNET alternatives from the README ranking; uncomment one model at a time.
 #interpreter_model: glm-5.3
 #interpreter_model: deepseek-v4.1-flash-thinking
@@ -78,13 +78,13 @@ interpreter_model: kimi-k3.1-pro
 #interpreter_source: ollama
 #interpreter_model: qwen3:1.7b
 #--
-#interpreter_source: openai
+interpreter_source: openai
 #interpreter_model: gpt-6.1-sol
 #interpreter_model: gpt-6-astra
 #interpreter_model: gpt-5.6-sol
 #interpreter_model: gpt-5.6-terra
 #interpreter_model: gpt-5.6-luna
-#interpreter_model: gpt-6-luna
+interpreter_model: gpt-6-luna
 #--
 #interpreter_source: groq
 #interpreter_model: openai/gpt-oss-120b

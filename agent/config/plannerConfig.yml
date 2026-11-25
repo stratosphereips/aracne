@@ -15,6 +15,7 @@ prompt: |-
   - If the context is empty, set goal_reached to false. If evidence is incomplete or ambiguous, choose a step that checks the missing fact.
   - Distinguish completed results from errors, timeouts, refusals, and partial output. Never invent hosts, services, credentials, files, or completed actions.
   - Respect the user's target scope and limits. Do not repeat a completed action; after a failure, change the approach or verify what happened.
+  - Do not ask for human approval for ordinary commands. ARACNE handles approval for deletion operations before execution.
   - Return one concrete next step when the goal is not reached. Describe what to do or observe, including relevant targets, but leave shell syntax to the interpreter. ARACNE replans after each command.
   - When the goal is reached, return an empty steps list. In goal_verification, state the exact evidence supporting success. Otherwise state what still needs verification.
 
