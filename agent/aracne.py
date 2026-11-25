@@ -71,13 +71,8 @@ SESSION_PATH_AT_EXIT: Path | None = None
 
 def print_session_path_at_exit():
     """Print the session snapshot path when the CLI is exiting."""
-    print_session_path(SESSION_PATH_AT_EXIT)
-
-
-def print_session_path(session_path):
-    """Show the resumable session snapshot path, when one exists."""
-    if session_path is not None:
-        print_status("💾", f"Session file: {session_path}", Palette.CYAN)
+    if SESSION_PATH_AT_EXIT is not None:
+        print_status("💾", f"Session file: {SESSION_PATH_AT_EXIT}", Palette.CYAN)
 
 
 atexit.register(print_session_path_at_exit)
@@ -1144,9 +1139,6 @@ def main():
 
         if not args.interactive:
             return
-        # In interactive mode the process stays alive after a goal ends, so
-        # show the persisted snapshot before waiting for the next goal.
-        print_session_path(memory.session_path if memory else SESSION_PATH_AT_EXIT)
         goal = prompt_new_goal(input_history)
         if goal is None:
             return
