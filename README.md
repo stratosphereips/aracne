@@ -74,19 +74,21 @@ targets:                     # Named SSH target profiles
     password: admin
 default_target: bot1          # Which profile to load by default
 planner_source: "openai"     # Default when -p is omitted
-planner_model: "gpt-6.1-sol"
+planner_model: "gpt-5.6-sol"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
 summarizer_source: "openai"  # openai | ollama | cesnet | groq
 summarizer_model: "gpt-6.1-sol"
 summarizer_temperature: 1.0
 interpreter_source: "openai"  # openai | ollama | cesnet | groq
-interpreter_model: "gpt-6.1-sol"
+interpreter_model: "gpt-5.6-sol"
 interpreter_temperature: 1.0
 model_presets:               # -p selects all three roles from one preset
   openai:
-    planner: gpt-6.1-sol
-    interpreter: gpt-6.1-sol
+    planner: gpt-5.6-sol
+    # planner: gpt-6.1-sol
+    interpreter: gpt-5.6-sol
+    # interpreter: gpt-6.1-sol
     summarizer: gpt-6.1-sol
   cesnet:
     planner: kimi-k3.1-pro
@@ -104,7 +106,7 @@ Use `password_env` to read a target password from the named environment variable
 
 The `llm_providers` section declares connection details for each LLM backend. Providers of kind `openai` use the OpenAI-compatible API, while providers of kind `ollama` route to a local Ollama daemon (either via `host`/`port` or a `base_url`).
 
-Use `python aracne.py -p cesnet -g "..."` to select the CESNET preset, or `-p openai`, `-p groq`, or `-p ollama`. Each preset selects the planner, interpreter, and summarizer model. Without `-p`, the three `*_source` and `*_model` fields above remain in effect. Edit a preset's role model IDs to change what `-p` uses; `available_models` in the default config lists other choices but does not run them. Only the selected provider needs credentials. An unknown or incomplete preset fails before the session starts.
+Use `python aracne.py -p cesnet -g "..."` to select the CESNET preset, or `-p openai`, `-p groq`, or `-p ollama`. Each preset selects the planner, interpreter, and summarizer model. Without `-p`, the three `*_source` and `*_model` fields above remain in effect. The default config keeps alternative model IDs as commented lines beside each active role model. To change a preset, comment its active role line and uncomment one alternative for that role. Only the selected provider needs credentials. An unknown or incomplete preset fails before the session starts.
 
 **Key rules**
 - Any source set to `openai` requires an API key (e.g., `OPENAI_API_KEY`, `CESNET_API_KEY`) and optionally a `base_url` declared under `llm_providers`.
@@ -166,7 +168,7 @@ List models available to your key with `curl -H "Authorization: Bearer ${CESNET_
 #### CESNET model ranking
 
 The following user-provided ranking is a qualitative guide for complex reasoning, programming, tool use, and autonomous agents as of November 25, 2026. Model availability depends on your CESNET account; check `/v1/models` before selecting an API model ID.
-The ranked IDs are listed under `model_presets.cesnet.available_models` in `agent/config/AttackConfig.yaml`. Set the three role IDs in that preset to the models available to your account, then use `-p cesnet`.
+The ranked IDs are included as commented choices under `model_presets.cesnet` in `agent/config/AttackConfig.yaml`. Uncomment the models available to your account, keeping one active line per role, then use `-p cesnet`.
 
 | Rank | API model ID | Intelligence tier | Main strength |
 | ---: | --- | --- | --- |

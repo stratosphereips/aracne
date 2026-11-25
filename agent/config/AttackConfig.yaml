@@ -2,39 +2,100 @@ goal: null
 
 # Default role routing. -p/--provider uses the matching preset below instead.
 planner_source: openai
-planner_model: gpt-6.1-sol
+planner_model: gpt-5.6-sol
+#planner_model: gpt-6.1-sol
+#planner_model: gpt-6-astra
+#planner_model: gpt-5.6-terra
+#planner_model: gpt-5.6-luna
+#planner_model: gpt-6-luna
 planner_temperature: 1.0
 interpreter_source: openai
-interpreter_model: gpt-6.1-sol
+interpreter_model: gpt-5.6-sol
+#interpreter_model: gpt-6.1-sol
+#interpreter_model: gpt-6-astra
+#interpreter_model: gpt-5.6-terra
+#interpreter_model: gpt-5.6-luna
+#interpreter_model: gpt-6-luna
 interpreter_temperature: 1.0
 summarizing: false
 summarizer_source: openai
 summarizer_model: gpt-6.1-sol
+#summarizer_model: gpt-6-astra
+#summarizer_model: gpt-5.6-sol
+#summarizer_model: gpt-5.6-terra
+#summarizer_model: gpt-5.6-luna
+#summarizer_model: gpt-6-luna
 summarizer_temperature: 1.0
 
-# The three role models selected by -p. Edit these IDs for your account.
-# available_models records other choices; it does not trigger extra API calls.
+# -p selects the three role models from one provider block. To change a model,
+# comment its active line and uncomment one choice for the same role below it.
 model_presets:
   openai:
-    planner: gpt-6.1-sol
-    interpreter: gpt-6.1-sol
+    planner: gpt-5.6-sol
+    # planner: gpt-6.1-sol
+    # planner: gpt-6-astra
+    # planner: gpt-5.6-terra
+    # planner: gpt-5.6-luna
+    # planner: gpt-6-luna
+    interpreter: gpt-5.6-sol
+    # interpreter: gpt-6.1-sol
+    # interpreter: gpt-6-astra
+    # interpreter: gpt-5.6-terra
+    # interpreter: gpt-5.6-luna
+    # interpreter: gpt-6-luna
     summarizer: gpt-6.1-sol
-    available_models: [gpt-6-astra, gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna, gpt-6-luna]
+    # summarizer: gpt-6-astra
+    # summarizer: gpt-5.6-sol
+    # summarizer: gpt-5.6-terra
+    # summarizer: gpt-5.6-luna
+    # summarizer: gpt-6-luna
   cesnet:
     planner: kimi-k3.1-pro
+    # planner: glm-5.3
+    # planner: deepseek-v4.1-flash-thinking
+    # planner: kimi-k3
+    # planner: qwen3.8-flash-next
+    # planner: deepseek-v4.1-flash
+    # planner: glm-5
+    # planner: glm-5.3-flash
+    # planner: qwen3.8-27b
+    # planner: qwen3.5-int4
+    # planner: gpt-oss-120b
+    # planner: mistral-medium-3.5
+    # planner: deepseek-r1
     interpreter: kimi-k3.1-pro
+    # interpreter: glm-5.3
+    # interpreter: deepseek-v4.1-flash-thinking
+    # interpreter: kimi-k3
+    # interpreter: qwen3.8-flash-next
+    # interpreter: deepseek-v4.1-flash
+    # interpreter: glm-5
+    # interpreter: glm-5.3-flash
+    # interpreter: qwen3.8-27b
+    # interpreter: qwen3.5-int4
+    # interpreter: gpt-oss-120b
+    # interpreter: mistral-medium-3.5
+    # interpreter: deepseek-r1
     summarizer: kimi-k3.1-pro
-    available_models: [glm-5.3, deepseek-v4.1-flash-thinking, kimi-k3, qwen3.8-flash-next, deepseek-v4.1-flash, glm-5, glm-5.3-flash, qwen3.8-27b, qwen3.5-int4, gpt-oss-120b, mistral-medium-3.5]
+    # summarizer: glm-5.3
+    # summarizer: deepseek-v4.1-flash-thinking
+    # summarizer: kimi-k3
+    # summarizer: qwen3.8-flash-next
+    # summarizer: deepseek-v4.1-flash
+    # summarizer: glm-5
+    # summarizer: glm-5.3-flash
+    # summarizer: qwen3.8-27b
+    # summarizer: qwen3.5-int4
+    # summarizer: gpt-oss-120b
+    # summarizer: mistral-medium-3.5
   groq:
     planner: openai/gpt-oss-120b
     interpreter: openai/gpt-oss-120b
     summarizer: openai/gpt-oss-120b
-    available_models: []
   ollama:
     planner: qwen3:1.7b
     interpreter: qwen3:1.7b
     summarizer: qwen3:1.7b
-    available_models: []
 
 action_limit: 50
 
