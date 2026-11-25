@@ -103,6 +103,8 @@ default_target: localhost
 llm_providers:
   openai:
     kind: openai
+    timeout_seconds: 120
+    max_retries: 0
   ollama:
     kind: ollama
     host: localhost
@@ -117,3 +119,5 @@ llm_providers:
     kind: openai
     base_url: https://api.groq.com/openai/v1
     api_key_env: GROQ_API_KEY
+    timeout_seconds: 120
+    max_retries: 0

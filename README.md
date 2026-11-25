@@ -102,6 +102,8 @@ Use `password_env` to read a target password from the named environment variable
 
 The `llm_providers` section declares connection details for each LLM backend. Providers of kind `openai` use the OpenAI-compatible API, while providers of kind `ollama` route to a local Ollama daemon (either via `host`/`port` or a `base_url`).
 
+Each OpenAI-compatible provider accepts `timeout_seconds` and `max_retries` in `llm_providers`. The default config uses a 120-second request timeout for OpenAI and Groq, and 90 seconds for CESNET; automatic retries are disabled. Adjust `timeout_seconds` for slower models or endpoints. The timeout is passed to the API client in seconds.
+
 Use `python aracne.py -p cesnet -g "..."` to select the CESNET preset, or `-p openai`, `-p groq`, or `-p ollama`. Each preset selects the planner, interpreter, and summarizer model. Without `-p`, `default_provider` selects its preset. The default config keeps alternative model IDs as commented lines beside each active role model. To change a preset, comment its active role line and uncomment one alternative for that role. Only the selected provider needs credentials. An unknown or incomplete preset fails before the session starts. Older configs with per-role `*_source` and `*_model` fields still work when they omit `default_provider`.
 
 **Key rules**
