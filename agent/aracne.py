@@ -405,6 +405,25 @@ def command_timeout_seconds(command):
     return NMAP_TIMEOUT_SECONDS if re.search(r"(?<![\w./-])nmap(?=\s|$)", command) else COMMAND_TIMEOUT_SECONDS
 
 
+def interpreter_requested_planner(command):
+    """Recognize the interpreter's explicit replan token and human-directed shell text."""
+    if command.strip() == "__ARACNE_REPLAN__":
+        return True
+    lower = command.lower()
+    clarification = re.search(
+        r"\b(no target(?:s)? specified|provide (?:an? )?(?:exact )?(?:target|ip|hostname)|"
+        r"please provide|need more information|which (?:host|target|network)|"
+        r"specify (?:the )?(?:target|host|network))\b",
+        lower,
+    )
+    shell_message = re.match(r"\s*(?:printf|echo|cat)\b", lower)
+    real_tool = re.search(
+        r"(?:^|[;&|]\s*)(?:nmap|curl|wget|ssh|ping|ip|find|grep|rg|nc|ncat|python3?)\b",
+        lower,
+    )
+    return bool(clarification and shell_message and not real_tool)
+
+
 def send_ssh_command(shell, command, action_count, timeout=None, poll_interval=COMMAND_POLL_INTERVAL):
     """Execute a command over an interactive SSH shell with streaming and exit diagnostics."""
     if timeout is None:
@@ -431,10 +450,15 @@ def send_ssh_command(shell, command, action_count, timeout=None, poll_interval=C
 
         sentinel = f"__ARACNE_EXIT__{action_count}__"
         encoded = base64.b64encode(command.encode("utf-8")).decode("ascii")
-        # Keep heredocs and multiline commands intact while placing the exit
-        # marker on the same PTY input line. eval preserves shell state (cd,
-        # exports), and programs that read stdin cannot consume the marker.
-        wire_command = f"eval \"$(printf '%s' '{encoded}' | base64 -d)\"; echo \"{sentinel}$?\""
+        # Commands that can terminate or replace the interactive shell must
+        # run in a child shell so ARACNE can still receive its completion marker.
+        can_end_shell = re.search(r"(?<![\w])(?:exit|exec)(?=\s|;|$)", command)
+        execution = (
+            f"( eval \"$(printf '%s' '{encoded}' | base64 -d)\" )"
+            if can_end_shell
+            else f"eval \"$(printf '%s' '{encoded}' | base64 -d)\""
+        )
+        wire_command = f"{execution}; __aracne_status=$?; echo \"{sentinel}$__aracne_status\""
         shell.send(wire_command + "\n")
 
         buffer = ""
@@ -466,6 +490,9 @@ def send_ssh_command(shell, command, action_count, timeout=None, poll_interval=C
                     sentinel_found = True
                     break
             else:
+                if getattr(shell, "closed", False) or not getattr(shell, "active", True):
+                    result["error"] = "SSH shell closed before ARACNE received the command completion marker."
+                    break
                 time.sleep(poll_interval)
 
         # Flush any remaining prompt data quickly once the sentinel has been seen.
@@ -783,6 +810,34 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
                 conclude_session(goal, "success", f"Planner confirmed the goal on action {action_number}.", memory=memory)
                 final_summary_generated = True
                 break
+
+            if command and interpreter_requested_planner(command):
+                note = (
+                    "The interpreter could not produce an assessment command and requested replanning. "
+                    "No command was executed. Choose a step supported by the supplied goal and context. "
+                    "If essential details are missing, ask the human through the planner."
+                )
+                print_status("🔁", "Interpreter requested planner guidance; no command was run.", Palette.MAGENTA)
+                context_history.append(note)
+                log_context_event("Interpreter Requested Replanning", note)
+                if memory:
+                    memory.record_action(goal, command, {
+                        "output": note,
+                        "exit_status": None,
+                        "timed_out": False,
+                    })
+                action_number += 1
+                context = memory.context() if memory else "\n\n".join(context_history)
+                plan = generate_plan(goal, context)
+                if plan == 'goal reached':
+                    conclude_session(goal, "success", "Planner confirmed the goal after interpreter replanning.", memory=memory)
+                    final_summary_generated = True
+                    break
+                if not plan or not plan.get("steps"):
+                    session_outcome = "incomplete"
+                    session_reason = "Planner could not produce an actionable step after interpreter replanning."
+                    break
+                continue
 
             print_status("📝", f"Step: {step_instruction}", Palette.WHITE)
             if command:
