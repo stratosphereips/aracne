@@ -7,6 +7,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 import argparse
+import atexit
 import base64
 import datetime
 import json
@@ -65,6 +66,16 @@ CURRENT_EXPERIMENT_DIR: Path | None = None
 CURRENT_EXPERIMENT_LOG: Path | None = None
 EXPERIMENT_START_TIME: datetime.datetime | None = None
 EXPERIMENT_FINALIZED = False
+SESSION_PATH_AT_EXIT: Path | None = None
+
+
+def print_session_path_at_exit():
+    """Print the session snapshot path when the CLI is exiting."""
+    if SESSION_PATH_AT_EXIT is not None:
+        print_status("💾", f"Session file: {SESSION_PATH_AT_EXIT}", Palette.CYAN)
+
+
+atexit.register(print_session_path_at_exit)
 
 
 class Palette:
@@ -993,7 +1004,7 @@ def prompt_new_goal(history=None):
 
 def main():
     args = parse_arguments()
-    global ollama_url, summarize, action_limit, check_command_authorization
+    global ollama_url, summarize, action_limit, check_command_authorization, SESSION_PATH_AT_EXIT
     input_history = GoalHistory(INPUT_HISTORY_PATH)
     input_history.enable()
 
@@ -1023,6 +1034,7 @@ def main():
             input_history.add(memory.current_goal)
     else:
         memory = InteractiveMemory.new_session(SESSIONS_ROOT) if args.interactive else None
+    SESSION_PATH_AT_EXIT = memory.session_path if memory else None
 
     # Overwrite with parameter values if provided
     if args.ollama_ip:
