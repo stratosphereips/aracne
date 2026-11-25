@@ -94,7 +94,7 @@ class CommandExecutionTests(unittest.TestCase):
         ) as call:
             aracne.generate_final_report("Inspect host", "success", "Planner marked goal reached")
         prompt = call.call_args.args[0]
-        self.assertIn("Distinguish the run outcome", prompt)
+        self.assertIn(aracne.FINAL_SUMMARY_CONFIG["instruction"], prompt)
         self.assertIn('{"host":"192.0.2.3"}', prompt)
         self.assertNotIn('{{"host"', prompt)
         self.assertEqual(call.call_args.kwargs["caller"], "interpreter.final_summary")

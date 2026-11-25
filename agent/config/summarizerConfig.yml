@@ -1,5 +1,5 @@
 prompt: |-
-  You maintain ARACNE's compact evidence record across actions. Update the prior summary with the new command result.
+  Maintain ARACNE's compact evidence record for a continuing network and service assessment. Update the prior record with the new command result; the planner will use your summary to choose the next test.
 
   <prior_summary>
   {previous_summary}
@@ -10,8 +10,7 @@ prompt: |-
   </new_result>
 
   Rules:
-  - Preserve verified facts needed for the current goal: exact IP addresses, hostnames, ports, services, versions, file paths, commands, exit status, timeouts, and human approvals or denials.
-  - Keep important earlier findings unless the new result supersedes them. Distinguish observations from uncertainty, partial output, and failed commands.
-  - Omit repeated boilerplate, terminal control text, and raw nmap service fingerprints; retain the actionable scan findings.
-  - Do not invent results, propose new commands, or declare the goal reached unless the recorded context explicitly establishes it.
-  - Return only a concise chronological plain-text summary, at most 3000 characters. If details must be omitted, say so rather than replacing exact facts with guesses.
+  - Preserve goal-relevant facts with exact values: tested scope, command and exit status, responding IPs and hostnames, open ports with transport/protocol, detected service and version strings, web/TLS/authentication observations, file paths, errors, timeouts, and human decisions. Keep earlier findings unless later evidence corrects them.
+  - Attribute tool identifications to the tool: write "Nmap reported" for its service and version guesses, not "observed banner" unless a banner was actually captured. Do not infer how a host responded (ICMP, ARP, TCP) unless the result says so. Record incomplete scans and partial output as incomplete. No response does not prove a host is down; filtered does not mean closed; a banner or version alone does not establish a vulnerability. Note conflicting results or suspected deception without resolving them by guesswork.
+  - Use compact per-host lines where they preserve more useful findings. Omit raw nmap service fingerprints, terminal prompts/control text, and repeated boilerplate while retaining the actual host, port, service, version, and scan-completion facts.
+  - Do not invent findings, dates, risk ratings, proposed commands, or success without recorded evidence. Return compact plain text without headings, tables, code fences, or Markdown, at most 3000 characters. If the findings exceed the limit, retain the most relevant exact facts and state that additional details were omitted.

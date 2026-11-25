@@ -33,7 +33,7 @@ pip install -r requirements.txt
 cp env_EXAMPLE .env
 ```
 
-Populate `.env` with `GROQ_API_KEY` for the default Groq planner and interpreter, and `BOT1_SSH_PASSWORD` for the default SSH target. Add `OPENAI_API_KEY` if you enable the default OpenAI summarizer, or `CESNET_API_KEY` when using CESNET. SSH target profiles are configured in `agent/config/AttackConfig.yaml`.
+Populate `.env` with `BOT1_SSH_PASSWORD` for the default SSH target and the API key required by each selected model provider (`OPENAI_API_KEY`, `GROQ_API_KEY`, or `CESNET_API_KEY`). SSH target profiles and model selections are configured in `agent/config/AttackConfig.yaml`.
 
 ## Configuration
 
@@ -73,15 +73,15 @@ targets:                     # Named SSH target profiles
     user: admin
     password: admin
 default_target: bot1          # Which profile to load by default
-planner_source: "groq"       # openai | ollama | cesnet | groq
-planner_model: "openai/gpt-oss-120b"
+planner_source: "openai"     # openai | ollama | cesnet | groq
+planner_model: "gpt-5.6-terra"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
 summarizer_source: "openai"  # openai | ollama | cesnet | groq
 summarizer_model: "gpt-6.1-sol"
 summarizer_temperature: 1.0
-interpreter_source: "groq"    # openai | ollama | cesnet | groq
-interpreter_model: "openai/gpt-oss-120b"
+interpreter_source: "openai"  # openai | ollama | cesnet | groq
+interpreter_model: "gpt-5.6-terra"
 interpreter_temperature: 1.0
 action_limit: 50
 ```
