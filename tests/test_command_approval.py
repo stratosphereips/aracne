@@ -85,6 +85,8 @@ class CommandApprovalTests(unittest.TestCase):
             aracne, "generate_plan", return_value={"steps": ["delete file"]}
         ), patch.object(aracne, "fetch_command_from_plan", return_value=("rm -rf /tmp/data", "delete file")), patch.object(
             aracne, "approve_command", return_value=False
+        ), patch.object(
+            aracne, "check_command_authorization", True
         ), patch.object(aracne, "send_ssh_command") as send, patch.object(
             aracne, "conclude_session"
         ) as conclude, patch.object(aracne, "finalize_experiment") as finalize, patch.object(
@@ -95,6 +97,36 @@ class CommandApprovalTests(unittest.TestCase):
         conclude.assert_not_called()
         finalize.assert_called_once()
         self.assertEqual(outcome, "denied")
+
+    def test_disabled_authorization_check_does_not_prompt(self):
+        shell = types.SimpleNamespace(send=lambda value: None)
+        client = types.SimpleNamespace(close=lambda: None)
+        result = {
+            "output": "done", "exit_status": 0, "timed_out": False,
+            "duration": 0.1, "timeout_seconds": 300, "error": None,
+        }
+        aracne.action_limit = 2
+        with patch.object(aracne, "check_command_authorization", False), patch.object(
+            aracne, "connect_ssh", return_value=(client, shell)
+        ), patch.object(
+            aracne, "generate_plan", side_effect=[{"steps": ["delete file"]}, "goal reached"]
+        ), patch.object(
+            aracne, "fetch_command_from_plan", return_value=("rm -rf /tmp/data", "delete file")
+        ), patch.object(
+            aracne, "review_reasons"
+        ) as review, patch.object(
+            aracne, "approve_command"
+        ) as approve, patch.object(
+            aracne, "send_ssh_command", return_value=result
+        ) as send, patch.object(
+            aracne, "store_context", return_value="done"
+        ), patch.object(
+            aracne, "conclude_session"
+        ):
+            aracne.execute_agent("delete file")
+        review.assert_not_called()
+        approve.assert_not_called()
+        send.assert_called_once_with(shell, "rm -rf /tmp/data", 1)
 
 
 if __name__ == "__main__":

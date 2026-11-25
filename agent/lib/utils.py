@@ -42,6 +42,7 @@ LLM_PROVIDERS: Dict[str, Dict[str, object]] = {}
 OPENAI_CLIENTS: Dict[str, OpenAI] = {}
 OPENAI_PROVIDER_KEYS: Dict[str, str] = {}
 OLLAMA_BASE_URL: str | None = None
+CHECK_COMMAND_AUTHORIZATION = False
 
 _THINK_BLOCK_PATTERN = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
 _THINK_TAG_PATTERN = re.compile(r"</?think>", re.IGNORECASE)
@@ -505,11 +506,16 @@ def _get_provider(name: str) -> Dict[str, object]:
     return provider
 
 
+def command_authorization_enabled() -> bool:
+    return CHECK_COMMAND_AUTHORIZATION
+
+
 def load_environment(env_path, config_path=None, provider_override=None):
     """Loads environment variables and attack configuration."""
     global OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_CLIENT, OPENAI_CLIENTS
     global SSH_CONFIG, MODELS, PLANNER_SOURCE, SUMMARIZER_SOURCE, INTERPRETER_SOURCE
     global OLLAMA_URL, OLLAMA_BASE_URL, LLM_PROVIDERS, OPENAI_PROVIDER_KEYS
+    global CHECK_COMMAND_AUTHORIZATION
 
     OPENAI_CLIENT = None
     OPENAI_CLIENTS.clear()
@@ -535,6 +541,11 @@ def load_environment(env_path, config_path=None, provider_override=None):
 
     with open(config_path_obj, "r", encoding="utf-8") as f:
         attack_config = yaml.safe_load(f)
+
+    approval_setting = attack_config.get("check_command_authorization", False)
+    if not isinstance(approval_setting, bool):
+        raise ValueError("check_command_authorization must be true or false in the config.")
+    CHECK_COMMAND_AUTHORIZATION = approval_setting
 
     LLM_PROVIDERS = {
         (name or "").strip().lower(): dict(config or {})

@@ -99,6 +99,7 @@ model_presets:               # -p selects all three roles from one preset
     interpreter: openai/gpt-oss-120b
     summarizer: openai/gpt-oss-120b
 action_limit: 50
+check_command_authorization: false  # Enable the pre-command approval gate
 ```
 
 You can switch targets by editing the `default_target` value or adding additional entries under `targets` for your own machines.
@@ -118,7 +119,7 @@ Use `python aracne.py -p cesnet -g "..."` to select the CESNET preset, or `-p op
 
 Edit the role prompts in `agent/config/plannerConfig.yml`, `agent/config/interpreterConfig.yml`, `agent/config/summarizerConfig.yml`, and `agent/config/finalSummaryConfig.yml`. Session-memory compression uses the prompt in `agent/lib/memory.py`. These prompts apply to the selected role regardless of whether its model runs on OpenAI, Groq, CESNET, or Ollama.
 
-The planner and interpreter prompts include the user's statement that ARACNE may run commands needed for the stated assessment and that the authorization is verified and signed. ARACNE treats this as a user assertion; it does not verify signatures or ownership. Target scope still comes from the goal, and the runtime asks before deletion operations.
+The planner and interpreter prompts include the user's statement that ARACNE may run commands needed for the stated assessment and that the authorization is verified and signed. ARACNE treats this as a user assertion; it does not verify signatures or ownership. Target scope still comes from the goal. Set `check_command_authorization: true` to enable pre-command approval prompts.
 
 To use Groq, put `GROQ_API_KEY=...` in the ignored root `.env` file (or export it in the process environment), then use `-p groq`. The default CLI reads the root `.env`; use `-e` to select a different file. The provider entry uses `kind: openai`.
 
@@ -210,6 +211,10 @@ optional arguments:
                         Path to YAML config (default: agent/config/AttackConfig.yaml)
   -p PROVIDER, --provider PROVIDER
                         Select the configured model preset for all three roles
+  --check-command-authorization
+                        Enable pre-command approval checks
+  --no-check-command-authorization
+                        Disable pre-command approval checks for this run
 ```
 
 CLI overrides take precedence over YAML defaults. Example:
@@ -231,7 +236,7 @@ Interactive goals share session memory: recent commands and results stay availab
 
 To continue a saved session, run `python aracne.py --load-session` (or `--load-session latest`). ARACNE loads the history and waits for a new goal before contacting the LLM. Add `-g "new goal"` to provide that goal immediately. You can also pass a session JSON path, an experiment directory, or its `context.log` to `--load-session`. Session files are stored in `logs/sessions/`; `latest` imports the newest archived experiment if no session file exists.
 
-ARACNE asks for approval before recognizable deletion operations, including `rm`, `find -delete`, `git clean`, and HTTP `DELETE` requests. Browsing and fetching with `curl`, `wget`, `lynx`, `w3m`, or similar tools runs without an approval prompt. Other commands, redirects, shell loops, and unknown executables also run without approval by default. Edit [agent/config/commandApproval.yaml](agent/config/commandApproval.yaml) to add or remove executable names in `always_ask`; ARACNE reloads the file before each command. Set `ask_unknown_commands: true` only if you want unknown executables reviewed. Declining a deletion returns to the new-goal prompt.
+Pre-command authorization checks are off by default. Set `check_command_authorization: true` in `AttackConfig.yaml` or run with `--check-command-authorization` to enable them. `--no-check-command-authorization` overrides an enabled config setting for one run. When enabled, ARACNE asks before commands selected by [agent/config/commandApproval.yaml](agent/config/commandApproval.yaml), including recognizable deletion operations such as `rm`, `find -delete`, `git clean`, and HTTP `DELETE`. Edit that policy file to change what requires approval; it is reloaded before each checked command. Declining approval returns to the new-goal prompt.
 If a plan, generated command, or command output specifically asks for human or system-owner confirmation before deletion, ARACNE asks you directly. An explicit `yes` is recorded as user approval before work continues; any other answer stops the current goal.
 
 ### Switching Models

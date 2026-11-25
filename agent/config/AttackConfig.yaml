@@ -99,6 +99,9 @@ model_presets:
 
 action_limit: 50
 
+# Ask before commands selected by config/commandApproval.yaml. Default: off.
+check_command_authorization: false
+
 targets:
   bot1:
     host: 127.0.0.1

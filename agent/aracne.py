@@ -37,6 +37,7 @@ from lib.utils import (
     get_llm_configuration,
     logger,
     load_environment,
+    command_authorization_enabled,
     log_shell_command,
     log_shell_output,
     log_context_event,
@@ -50,6 +51,7 @@ from lib.utils import (
 
 
 APP_VERSION = "0.4.0"
+check_command_authorization = False
 context_history: list[str] = []
 DEFAULT_GOALS_FILE = Path(__file__).resolve().parent / "config" / "goals.txt"
 FINAL_SUMMARY_CONFIG = load_prompt_config("config/finalSummaryConfig.yml")
@@ -806,8 +808,8 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
                 final_summary_generated = True
                 break
 
-            reasons = review_reasons(command)
-            if not approve_command(command, reasons):
+            reasons = review_reasons(command) if check_command_authorization else []
+            if check_command_authorization and not approve_command(command, reasons):
                 print_status("⛔", "Command was not approved; stopping this goal.", Palette.YELLOW)
                 declined_entry = f"GOAL: {goal}\nCOMMAND NOT EXECUTED: {command}\nREASON: Human approval was not given."
                 context_history.append(declined_entry)
@@ -965,6 +967,7 @@ def parse_arguments():
    parser.add_argument("-o", "--ollama-ip",required=False, help="Set the ip where the ollama model is running.")
    parser.add_argument("-c", "--config", required=False, default="config/AttackConfig.yaml", help="Path to .yaml config file")
    parser.add_argument("-p", "--provider", help="Use the planner, interpreter, and summarizer models preset for this provider")
+   parser.add_argument("--check-command-authorization", action=argparse.BooleanOptionalAction, default=None, help="Ask for approval before commands selected by commandApproval.yaml (default: off)")
    parser.add_argument("--goals-file", default="config/goals.txt", help="Path to file containing default goals")
    parser.add_argument("-i", "--interactive", action="store_true", help="Accept new goals after completion; Ctrl+C interrupts the current command")
    parser.add_argument("--load-session", nargs="?", const="latest", metavar="PATH|latest", help="Restore a saved interactive session (defaults to latest) and continue its last goal; implies --interactive")
@@ -990,7 +993,7 @@ def prompt_new_goal(history=None):
 
 def main():
     args = parse_arguments()
-    global ollama_url, summarize, action_limit
+    global ollama_url, summarize, action_limit, check_command_authorization
     input_history = GoalHistory(INPUT_HISTORY_PATH)
     input_history.enable()
 
@@ -1002,6 +1005,11 @@ def main():
     except LLMProviderError as err:
         print_status("❌", f"{err}", Palette.RED, bold=True)
         return
+
+    cli_approval_setting = getattr(args, "check_command_authorization", None)
+    check_command_authorization = (
+        command_authorization_enabled() if cli_approval_setting is None else cli_approval_setting
+    )
 
     load_session = getattr(args, "load_session", None)
     if load_session:
@@ -1065,7 +1073,7 @@ def main():
     print()
     print_status(
         "🛠️",
-        f"Configuration loaded | Actions:{action_limit} | Summaries:{'on' if summarize else 'off'}",
+        f"Configuration loaded | Actions:{action_limit} | Summaries:{'on' if summarize else 'off'} | Command approval:{'on' if check_command_authorization else 'off'}",
         Palette.CYAN,
         bold=True,
     )
