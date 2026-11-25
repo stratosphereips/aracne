@@ -1,22 +1,44 @@
 goal: null
+
 planner_source: cesnet
-planner_model: glm-5.3
-planner_temperature: 1.0
+planner_model: glm-5.3-flash
+#planner_model: kimi-k3.1-pro
+#planner_model: deepseek-v4.1-flash-thinking
+#--
+#planner_source: openai
+#planner_model: gpt-6.1-sol
+#--
 #planner_source: ollama
 #planner_model: qwen3:1.7b
 #planner_source: cesnet
 #planner_model: deepseek-r1
+#--
+planner_temperature: 1.0
+
 summarizing: false
-summarizer_source: cesnet
-summarizer_model: glm-5.3
+summarizer_source: openai
+summarizer_model: gpt-4o-2024-08-06
 summarizer_temperature: 1.0
+
+interpreter_source: cesnet
+interpreter_model: glm-5.3-flash
+#--
 #interpreter_source: ollama
 #interpreter_model: qwen3:1.7b
-interpreter_source: cesnet
-interpreter_model: glm-5.3
+#--
+#interpreter_source: openai
+#interpreter_model: glm-5.3
+#--
 interpreter_temperature: 1.0
+
 action_limit: 50
+
 targets:
+  bot1:
+    host: 127.0.0.1
+    port: 22
+    user: pedro
+    password_env: BOT1_SSH_PASSWORD
   ubuntu:
     host: localhost
     port: 2222
@@ -27,7 +49,9 @@ targets:
     port: 22
     user: admin
     password: admin
-default_target: ubuntu
+default_target: bot1
+
+
 llm_providers:
   openai:
     kind: openai

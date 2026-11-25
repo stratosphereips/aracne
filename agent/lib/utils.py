@@ -478,12 +478,22 @@ def _select_target(config: dict) -> dict:
         available = ", ".join(sorted(targets))
         raise ValueError(f"Error: default_target '{default_key}' not found. Available targets: {available}")
 
-    required_fields = ("host", "port", "user", "password")
+    required_fields = ("host", "port", "user")
     missing = [field for field in required_fields if field not in target or target[field] is None]
     if missing:
         raise ValueError(f"Error: Target '{default_key}' is missing required fields: {', '.join(missing)}")
 
-    return target
+    password_env = target.get("password_env")
+    if password_env:
+        password = os.getenv(str(password_env))
+        if not password:
+            raise ValueError(f"Error: Target '{default_key}' requires environment variable '{password_env}'.")
+    else:
+        password = target.get("password")
+        if password is None:
+            raise ValueError(f"Error: Target '{default_key}' is missing 'password' or 'password_env'.")
+
+    return {**target, "password": password}
 
 
 def _get_provider(name: str) -> Dict[str, object]:

@@ -33,7 +33,7 @@ pip install -r requirements.txt
 cp env_EXAMPLE agent/.env
 ```
 
-Populate `agent/.env` with `CESNET_API_KEY` for the default CESNET models. SSH target profiles are configured in `agent/config/AttackConfig.yaml`; `OPENAI_API_KEY` is only needed when a role uses OpenAI.
+Populate `agent/.env` with `CESNET_API_KEY` for the default CESNET models and `BOT1_SSH_PASSWORD` for the default SSH target. SSH target profiles are configured in `agent/config/AttackConfig.yaml`; `OPENAI_API_KEY` is needed when an enabled role uses OpenAI (for example, when summaries are enabled with the default summarizer).
 
 ## Configuration
 
@@ -53,9 +53,14 @@ llm_providers:
     base_url: https://llm.ai.e-infra.cz/v1
     api_key_env: CESNET_API_KEY
 targets:                     # Named SSH target profiles
+  bot1:
+    host: 127.0.0.1
+    port: 22
+    user: pedro
+    password_env: BOT1_SSH_PASSWORD
   ubuntu:
     host: localhost
-    port: 23
+    port: 2222
     user: root
     password: 123456
   shellm:
@@ -63,21 +68,22 @@ targets:                     # Named SSH target profiles
     port: 22
     user: admin
     password: admin
-default_target: ubuntu        # Which profile to load by default
+default_target: bot1          # Which profile to load by default
 planner_source: "cesnet"     # openai | ollama | cesnet
-planner_model: "glm-5.3"
+planner_model: "glm-5.3-flash"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
-summarizer_source: "cesnet"  # openai | ollama | cesnet
-summarizer_model: "glm-5.3"
+summarizer_source: "openai"  # openai | ollama | cesnet
+summarizer_model: "gpt-4o-2024-08-06"
 summarizer_temperature: 1.0
 interpreter_source: "cesnet"  # openai | ollama | cesnet
-interpreter_model: "glm-5.3"
+interpreter_model: "glm-5.3-flash"
 interpreter_temperature: 1.0
-action_limit: 30
+action_limit: 50
 ```
 
 You can switch targets by editing the `default_target` value or adding additional entries under `targets` for your own machines.
+Use `password_env` to read a target password from the named environment variable instead of storing it in YAML. The default `bot1` profile reads `BOT1_SSH_PASSWORD` from `agent/.env` or the process environment.
 
 The `llm_providers` section declares connection details for each LLM backend. Providers of kind `openai` use the OpenAI-compatible API, while providers of kind `ollama` route to a local Ollama daemon (either via `host`/`port` or a `base_url`).
 
