@@ -3,58 +3,122 @@
 import re
 import shlex
 import sys
+from pathlib import Path
+
+import yaml
 
 
-READ_ONLY_COMMANDS = {
-    "cat", "cut", "date", "df", "du", "echo", "egrep", "fgrep", "file",
-    "getent", "grep", "groups", "head", "hostname", "id", "ls", "netstat",
-    "nmap", "ping", "printenv", "printf", "ps", "pwd", "readlink", "sort",
-    "ss", "stat", "tail", "tr", "true", "uname", "uniq", "uptime", "wc",
-    "whoami",
-}
-CHANGING_COMMANDS = {
-    "apt", "apt-get", "chmod", "chown", "chgrp", "cp", "dd", "docker",
-    "fdisk", "kill", "killall", "mkfs", "mount", "mv", "parted", "passwd",
-    "pkill", "reboot", "rm", "rmdir", "service", "setfacl", "shred",
-    "shutdown", "systemctl", "tee", "truncate", "ufw", "umount", "useradd",
-    "userdel", "usermod", "wipefs",
-}
+POLICY_PATH = Path(__file__).resolve().parents[1] / "config" / "commandApproval.yaml"
+SEPARATORS = {"&&", "||", ";", "|", "&", "\n"}
 
 
-def review_reasons(command: str) -> list[str]:
-    """Return reasons to ask for approval; an empty list means read-only syntax."""
-    reasons = []
+def _load_policy(path):
+    with Path(path).open("r", encoding="utf-8") as handle:
+        policy = yaml.safe_load(handle)
+    if not isinstance(policy, dict):
+        raise ValueError("Policy must be a YAML mapping")
+    for field in ("always_ask", "allow_without_approval"):
+        value = policy.get(field)
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ValueError(f"{field} must be a list of executable names")
+    if not isinstance(policy.get("ask_unknown_commands"), bool):
+        raise ValueError("ask_unknown_commands must be true or false")
+    return (
+        {name.lower() for name in policy["always_ask"]},
+        {name.lower() for name in policy["allow_without_approval"]},
+        policy["ask_unknown_commands"],
+    )
+
+
+def _shell_tokens(command):
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()<>\n")
+    lexer.whitespace = " \t\r"
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    return list(lexer)
+
+
+def _command_segments(tokens):
+    segment = []
+    for token in tokens:
+        if token in SEPARATORS:
+            if segment:
+                yield segment
+                segment = []
+        else:
+            segment.append(token)
+    if segment:
+        yield segment
+
+
+def _executable(segment):
+    for index, token in enumerate(segment):
+        if token in {"(", ")"} or re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*=.*", token):
+            continue
+        if token in {"<", "<<", "<<<", ">", ">>", ">&", "&>", ">&>"}:
+            continue
+        if token.isdigit() and index + 1 < len(segment) and ">" in segment[index + 1]:
+            continue
+        return token.rsplit("/", 1)[-1].lower(), segment[index + 1:]
+    return None, []
+
+
+def _review(command, policy, depth=0):
+    if depth > 8:
+        return ["Nested shell execution is too complex to review automatically"]
+    always_ask, allowed, ask_unknown = policy
     try:
-        tokens = shlex.split(command, posix=True)
+        tokens = _shell_tokens(command)
     except ValueError:
         return ["The shell command could not be parsed safely"]
     if not tokens:
         return ["The command is empty"]
 
-    words = [token.lower() for token in tokens]
-    changing = sorted({word for word in words if word in CHANGING_COMMANDS})
-    if changing:
-        reasons.append("Changes or removes data/system state: " + ", ".join(changing))
+    reasons = []
+    if re.search(r"[<>]\(", command):
+        reasons.append("Contains process substitution")
+    for index, token in enumerate(tokens):
+        if token in {">", ">>", ">|", "&>", "&>>"} or (token == ">&" and (
+            index + 1 >= len(tokens) or not tokens[index + 1].isdigit()
+        )):
+            reasons.append("Writes through shell output redirection")
+            break
 
-    if re.search(r"(?<!<)>(?!>)|>>|>\||\b(?:eval|exec|sudo|su)\b", command):
-        reasons.append("Contains output redirection or privileged/dynamic execution")
-    if re.search(r"\$\(|`|(?:&&|\|\||[;|])", command):
-        reasons.append("Contains compound shell syntax or command substitution")
+    for segment in _command_segments(tokens):
+        executable, arguments = _executable(segment)
+        if not executable:
+            continue
+        if executable in always_ask:
+            reasons.append(f"'{executable}' is configured to require approval")
+        elif executable == "ip":
+            if not any(word in {"show", "get"} for word in arguments) or any(
+                word in {"add", "del", "delete", "set", "flush", "replace"} for word in arguments
+            ):
+                reasons.append("'ip' may change network configuration")
+        elif executable not in allowed and ask_unknown:
+            reasons.append(f"'{executable}' is not listed as safe")
+        if executable == "nmap" and (
+            any(word.lower() == "-sc" or word.lower().startswith("--script") for word in arguments)
+            or any(word.lower().startswith(("-oa", "-og", "-on", "-os")) for word in arguments)
+            or any(word.lower().startswith("-ox") and (index + 1 >= len(arguments) or arguments[index + 1] != "-")
+                   for index, word in enumerate(arguments))
+        ):
+            reasons.append("Nmap scripts or output files may have side effects")
 
-    executable = words[0].rsplit("/", 1)[-1]
-    if executable == "ip" and any(word in {"show", "get"} for word in words[1:]) and not any(
-        word in {"add", "del", "delete", "set", "flush", "replace"} for word in words[1:]
-    ):
-        return reasons
-    if executable not in READ_ONLY_COMMANDS and executable not in CHANGING_COMMANDS:
-        reasons.append(f"'{executable}' is not verified as read-only")
-    if executable == "nmap" and any(
-        token == "-sc" or token.startswith("--script") or token.startswith(("-oa", "-og", "-on", "-ox", "-os"))
-        for token in words[1:]
-    ):
-        reasons.append("Nmap scripts or output files may have side effects")
+    for inner in re.findall(r"\$\(([^()]*)\)", command):
+        reasons.extend(_review(inner, policy, depth + 1))
+    for inner in re.findall(r"(?<!\\)`([^`]*)`", command):
+        reasons.extend(_review(inner, policy, depth + 1))
+    return list(dict.fromkeys(reasons))
 
-    return reasons
+
+def review_reasons(command: str, policy_path=POLICY_PATH) -> list[str]:
+    """Return reasons to ask for approval, using the editable policy file."""
+    try:
+        policy = _load_policy(policy_path)
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        return [f"Approval policy could not be loaded: {exc}"]
+    return _review(command, policy)
 
 
 def approve_command(command: str, reasons: list[str], *, input_fn=input, is_tty=None) -> bool:

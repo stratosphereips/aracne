@@ -1,0 +1,91 @@
+# Edit these lists to control which remote commands need approval.
+# Executable names are case-insensitive; paths are matched by basename.
+# Commands in always_ask take precedence over allow_without_approval.
+always_ask:
+  - apt
+  - apt-get
+  - chmod
+  - chown
+  - chgrp
+  - cp
+  - dd
+  - docker
+  - eval
+  - exec
+  - fdisk
+  - kill
+  - killall
+  - mkfs
+  - mount
+  - mv
+  - parted
+  - passwd
+  - pkill
+  - reboot
+  - rm
+  - rmdir
+  - service
+  - setfacl
+  - sh
+  - shred
+  - shutdown
+  - sudo
+  - su
+  - systemctl
+  - tee
+  - truncate
+  - ufw
+  - umount
+  - useradd
+  - userdel
+  - usermod
+  - wipefs
+
+allow_without_approval:
+  - basename
+  - cat
+  - cut
+  - date
+  - df
+  - dig
+  - dirname
+  - du
+  - echo
+  - egrep
+  - fgrep
+  - file
+  - getent
+  - grep
+  - groups
+  - head
+  - host
+  - hostname
+  - id
+  - ls
+  - netstat
+  - nmap
+  - nslookup
+  - ping
+  - printenv
+  - printf
+  - ps
+  - pwd
+  - readlink
+  - realpath
+  - seq
+  - sleep
+  - sort
+  - ss
+  - stat
+  - tail
+  - tr
+  - "true"
+  - uname
+  - uniq
+  - uptime
+  - wc
+  - whoami
+  - which
+
+# Unknown executables are reviewed by default. Set false to allow them.
+ask_unknown_commands: true

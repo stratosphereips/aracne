@@ -970,6 +970,21 @@ def parse_arguments():
    return parser.parse_args()
 
 
+def prompt_new_goal():
+    """Wait for a nonempty instruction before running another goal."""
+    while True:
+        try:
+            goal = input(style("New goal (or 'quit'): ", Palette.BOLD)).strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return None
+        if goal.lower() in {"quit", "exit"}:
+            return None
+        if goal:
+            return goal
+        print_status("ℹ️", "Please enter a goal or 'quit'.", Palette.YELLOW)
+
+
 def main():
     args = parse_arguments()
     global ollama_url, summarize, action_limit
@@ -999,10 +1014,13 @@ def main():
         ollama_url = args.ollama_ip
     if args.summarize:
         summarize = args.summarize
-    if args.goal:
+    if load_session and not args.goal:
+        print_status("💾", f"Session loaded: {memory.session_path}", Palette.CYAN)
+        goal = prompt_new_goal()
+        if goal is None:
+            return
+    elif args.goal:
         goal = args.goal
-    elif load_session and memory.current_goal:
-        goal = memory.current_goal
     elif config_goal and config_goal != '':
         goal = config_goal
     else:
@@ -1063,14 +1081,10 @@ def main():
     print_status("✅", "LLM connectivity verified.", Palette.GREEN, bold=True)
     print()
 
-    resumed_first_goal = bool(load_session and goal == memory.current_goal)
     while True:
         try:
             if memory:
-                if resumed_first_goal:
-                    resumed_first_goal = False
-                else:
-                    memory.start_goal(goal)
+                memory.start_goal(goal)
             update_logs(goal, summarize)
             execute_agent(goal, summarize, interactive=args.interactive, memory=memory)
         except LLMProviderError as err:
@@ -1084,17 +1098,9 @@ def main():
 
         if not args.interactive:
             return
-        while True:
-            try:
-                goal = input(style("New goal (or 'quit'): ", Palette.BOLD)).strip()
-            except (EOFError, KeyboardInterrupt):
-                print()
-                return
-            if goal.lower() in {"quit", "exit"}:
-                return
-            if goal:
-                break
-            print_status("ℹ️", "Please enter a goal or 'quit'.", Palette.YELLOW)
+        goal = prompt_new_goal()
+        if goal is None:
+            return
 
 
 if __name__ == "__main__":

@@ -140,7 +140,7 @@ class CommandExecutionTests(unittest.TestCase):
         self.assertEqual([call.args[0] for call in execute.call_args_list], ["first", "second"])
         self.assertIs(execute.call_args_list[0].kwargs["memory"], execute.call_args_list[1].kwargs["memory"])
 
-    def test_load_session_resumes_saved_goal_in_interactive_mode(self):
+    def test_load_session_waits_for_new_goal_before_planning(self):
         memory = InteractiveMemory()
         memory.current_goal = "inspect a host"
         memory.recent = ["GOAL: find hosts\nOUTPUT:\n172.20.0.1 is up"]
@@ -153,12 +153,49 @@ class CommandExecutionTests(unittest.TestCase):
         ), patch.object(aracne, "print_llm_overview"), patch.object(
             aracne, "update_logs"
         ), patch.object(aracne, "execute_agent") as execute, patch(
-            "builtins.input", return_value="quit"
+            "builtins.input", side_effect=["", "inspect 172.20.0.1", "quit"]
         ):
             aracne.main()
-        self.assertEqual(execute.call_args.args[0], "inspect a host")
+        self.assertEqual(execute.call_args.args[0], "inspect 172.20.0.1")
         self.assertIs(execute.call_args.kwargs["memory"], memory)
+        self.assertEqual(memory.current_goal, "inspect 172.20.0.1")
         self.assertTrue(args.interactive)
+
+    def test_load_session_quit_without_goal_does_not_call_model(self):
+        memory = InteractiveMemory()
+        memory.current_goal = "old goal"
+        args = Namespace(env=".env", config="config/AttackConfig.yaml", goal=None, ollama_ip=None,
+                         summarize=False, goals_file="", interactive=False, load_session="latest")
+        with patch.object(aracne, "parse_arguments", return_value=args), patch.object(
+            aracne, "setup_env", return_value=("configured goal", False, None, 2)
+        ), patch.object(aracne.InteractiveMemory, "load_session", return_value=memory), patch.object(
+            aracne, "verify_llm_connectivity"
+        ) as preflight, patch.object(aracne, "execute_agent") as execute, patch(
+            "builtins.input", side_effect=["", "quit"]
+        ):
+            aracne.main()
+        preflight.assert_not_called()
+        execute.assert_not_called()
+        self.assertEqual(memory.current_goal, "old goal")
+
+    def test_load_session_with_goal_starts_immediately(self):
+        memory = InteractiveMemory()
+        memory.current_goal = "old goal"
+        args = Namespace(env=".env", config="config/AttackConfig.yaml", goal="new goal", ollama_ip=None,
+                         summarize=False, goals_file="", interactive=False, load_session="latest")
+        with patch.object(aracne, "parse_arguments", return_value=args), patch.object(
+            aracne, "setup_env", return_value=(None, False, None, 2)
+        ), patch.object(aracne.InteractiveMemory, "load_session", return_value=memory), patch.object(
+            aracne, "verify_llm_connectivity"
+        ), patch.object(aracne, "print_llm_overview"), patch.object(
+            aracne, "update_logs"
+        ), patch.object(aracne, "execute_agent") as execute, patch(
+            "builtins.input", return_value="quit"
+        ) as user_input:
+            aracne.main()
+        execute.assert_called_once()
+        self.assertEqual(execute.call_args.args[0], "new goal")
+        user_input.assert_called_once()
 
     def test_interpreter_command_is_not_rewritten(self):
         generated = "nmap -sn -R 172.20.0.0/16"

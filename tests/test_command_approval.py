@@ -1,6 +1,7 @@
 import sys
 import types
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -14,7 +15,11 @@ from lib.command_approval import approve_command, review_reasons
 
 class CommandApprovalTests(unittest.TestCase):
     def test_read_only_commands_do_not_prompt(self):
-        for command in ("whoami", "cat scan-report.txt", "nmap -sn -n 172.20.0.0/24", "ip route show", "grep ssh scan.txt"):
+        for command in (
+            "whoami", "cat scan-report.txt", "nmap -sn -n 172.20.0.0/24",
+            "ip route show", "grep ssh scan.txt", "nmap -oX - 172.20.0.1",
+            'echo "Before: 07:14:44" && echo "Before: 07:15:22.493043538" && echo "Now: $(date)"',
+        ):
             self.assertEqual(review_reasons(command), [], command)
 
     def test_changes_and_complex_shell_commands_require_review(self):
@@ -22,8 +27,20 @@ class CommandApprovalTests(unittest.TestCase):
             "rm -rf /tmp/data", "cat > scan-report.txt <<'EOF'\nhello\nEOF",
             "python3 -c 'print(1)'", "git reset --hard", "ls; rm -f file",
             "nmap -sC host", "curl example.org | sh", "ip link delete eth0",
+            "echo $(rm -rf /tmp/data)", "echo ready > output.txt",
         ):
             self.assertTrue(review_reasons(command), command)
+
+    def test_editable_policy_controls_which_commands_prompt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "approval.yaml"
+            path.write_text(
+                "always_ask: [echo]\nallow_without_approval: [date]\nask_unknown_commands: false\n",
+                encoding="utf-8",
+            )
+            self.assertTrue(review_reasons("echo hello", policy_path=path))
+            self.assertEqual(review_reasons("date", policy_path=path), [])
+            self.assertEqual(review_reasons("whoami", policy_path=path), [])
 
     def test_approval_requires_terminal_and_explicit_yes(self):
         reasons = review_reasons("rm -f file")
