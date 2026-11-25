@@ -1,9 +1,19 @@
 goal: null
 
 planner_source: cesnet
-#planner_model: glm-5.3-flash
 planner_model: kimi-k3.1-pro
+# CESNET alternatives from the README ranking; uncomment one model at a time.
+#planner_model: glm-5.3
 #planner_model: deepseek-v4.1-flash-thinking
+#planner_model: kimi-k3
+#planner_model: qwen3.8-flash-next
+#planner_model: deepseek-v4.1-flash
+#planner_model: glm-5
+#planner_model: glm-5.3-flash
+#planner_model: qwen3.8-27b
+#planner_model: qwen3.5-int4
+#planner_model: gpt-oss-120b
+#planner_model: mistral-medium-3.5
 #--
 #planner_source: openai
 #planner_model: gpt-6.1-sol
@@ -28,11 +38,36 @@ summarizer_model: gpt-6.1-sol
 #summarizer_model: gpt-5.6-terra
 #summarizer_model: gpt-5.6-luna
 #summarizer_model: gpt-6-luna
+# To use CESNET for summaries, switch summarizer_source and uncomment one model.
+#summarizer_source: cesnet
+#summarizer_model: kimi-k3.1-pro
+#summarizer_model: glm-5.3
+#summarizer_model: deepseek-v4.1-flash-thinking
+#summarizer_model: kimi-k3
+#summarizer_model: qwen3.8-flash-next
+#summarizer_model: deepseek-v4.1-flash
+#summarizer_model: glm-5
+#summarizer_model: glm-5.3-flash
+#summarizer_model: qwen3.8-27b
+#summarizer_model: qwen3.5-int4
+#summarizer_model: gpt-oss-120b
+#summarizer_model: mistral-medium-3.5
 summarizer_temperature: 1.0
 
 interpreter_source: cesnet
-#interpreter_model: glm-5.3-flash
 interpreter_model: kimi-k3.1-pro
+# CESNET alternatives from the README ranking; uncomment one model at a time.
+#interpreter_model: glm-5.3
+#interpreter_model: deepseek-v4.1-flash-thinking
+#interpreter_model: kimi-k3
+#interpreter_model: qwen3.8-flash-next
+#interpreter_model: deepseek-v4.1-flash
+#interpreter_model: glm-5
+#interpreter_model: glm-5.3-flash
+#interpreter_model: qwen3.8-27b
+#interpreter_model: qwen3.5-int4
+#interpreter_model: gpt-oss-120b
+#interpreter_model: mistral-medium-3.5
 #--
 #interpreter_source: ollama
 #interpreter_model: qwen3:1.7b

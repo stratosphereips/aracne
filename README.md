@@ -139,6 +139,7 @@ List models available to your key with `curl -H "Authorization: Bearer ${CESNET_
 #### CESNET model ranking
 
 The following user-provided ranking is a qualitative guide for complex reasoning, programming, tool use, and autonomous agents as of November 25, 2026. Model availability depends on your CESNET account; check `/v1/models` before selecting an API model ID.
+The ranked IDs are listed as commented choices for each role in `agent/config/AttackConfig.yaml`; select one model per role and set its source to `cesnet`.
 
 | Rank | API model ID | Intelligence tier | Main strength |
 | ---: | --- | --- | --- |
