@@ -1,33 +1,12 @@
 goal: null
 
-# Default role routing. -p/--provider uses the matching preset below instead.
-planner_source: openai
-planner_model: gpt-5.6-sol
-#planner_model: gpt-6.1-sol
-#planner_model: gpt-6-astra
-#planner_model: gpt-5.6-terra
-#planner_model: gpt-5.6-luna
-#planner_model: gpt-6-luna
+default_provider: openai
 planner_temperature: 1.0
-interpreter_source: openai
-interpreter_model: gpt-5.6-sol
-#interpreter_model: gpt-6.1-sol
-#interpreter_model: gpt-6-astra
-#interpreter_model: gpt-5.6-terra
-#interpreter_model: gpt-5.6-luna
-#interpreter_model: gpt-6-luna
 interpreter_temperature: 1.0
 summarizing: false
-summarizer_source: openai
-summarizer_model: gpt-6.1-sol
-#summarizer_model: gpt-6-astra
-#summarizer_model: gpt-5.6-sol
-#summarizer_model: gpt-5.6-terra
-#summarizer_model: gpt-5.6-luna
-#summarizer_model: gpt-6-luna
 summarizer_temperature: 1.0
 
-# -p selects the three role models from one provider block. To change a model,
+# -p overrides default_provider. To change a model,
 # comment its active line and uncomment one choice for the same role below it.
 model_presets:
   openai:

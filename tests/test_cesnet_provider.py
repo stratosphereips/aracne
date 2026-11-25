@@ -35,10 +35,9 @@ class CesnetProviderTests(unittest.TestCase):
 
     def _config_path(self, directory, base_url):
         config = yaml.safe_load((Path(__file__).resolve().parents[1] / "agent/config/AttackConfig.yaml").read_text())
-        config["planner_source"] = "cesnet"
-        config["interpreter_source"] = "cesnet"
-        config["planner_model"] = "glm-5.3"
-        config["interpreter_model"] = "glm-5.3"
+        config["default_provider"] = "cesnet"
+        config["model_presets"]["cesnet"]["planner"] = "glm-5.3"
+        config["model_presets"]["cesnet"]["interpreter"] = "glm-5.3"
         config["llm_providers"]["cesnet"]["base_url"] = base_url
         path = Path(directory) / "config.yaml"
         path.write_text(yaml.safe_dump(config))

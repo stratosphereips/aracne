@@ -560,21 +560,21 @@ def load_environment(env_path, config_path=None, provider_override=None):
         "user": target_profile["user"],
         "password": target_profile["password"],
     }
-    if provider_override:
-        provider_override = provider_override.strip().lower()
+    selected_provider = (provider_override or attack_config.get("default_provider") or "").strip().lower()
+    if selected_provider:
         presets = attack_config.get("model_presets") or {}
-        preset = presets.get(provider_override)
+        preset = presets.get(selected_provider)
         if not isinstance(preset, dict):
             available = ", ".join(sorted(presets)) or "none"
             raise ValueError(
-                f"No model preset for provider '{provider_override}'. Available presets: {available}."
+                f"No model preset for provider '{selected_provider}'. Available presets: {available}."
             )
-        if provider_override not in LLM_PROVIDERS:
-            raise ValueError(f"Provider '{provider_override}' is not configured under llm_providers.")
+        if selected_provider not in LLM_PROVIDERS:
+            raise ValueError(f"Provider '{selected_provider}' is not configured under llm_providers.")
         missing = [role for role in ("planner", "interpreter", "summarizer") if not preset.get(role)]
         if missing:
             raise ValueError(
-                f"Model preset '{provider_override}' is missing: {', '.join(missing)}."
+                f"Model preset '{selected_provider}' is missing: {', '.join(missing)}."
             )
         planner_model = preset["planner"]
         interpreter_model = preset["interpreter"]
@@ -598,9 +598,9 @@ def load_environment(env_path, config_path=None, provider_override=None):
     summarize = attack_config["summarizing"]
     action_limit = attack_config["action_limit"]
 
-    planner_source_raw = provider_override or attack_config["planner_source"].strip().lower()
-    summarizer_source_raw = provider_override or attack_config["summarizer_source"].strip().lower()
-    interpreter_source_raw = provider_override or attack_config["interpreter_source"].strip().lower()
+    planner_source_raw = selected_provider or attack_config["planner_source"].strip().lower()
+    summarizer_source_raw = selected_provider or attack_config["summarizer_source"].strip().lower()
+    interpreter_source_raw = selected_provider or attack_config["interpreter_source"].strip().lower()
 
     PLANNER_SOURCE = planner_source_raw
     SUMMARIZER_SOURCE = summarizer_source_raw

@@ -16,10 +16,7 @@ class GroqProviderTests(unittest.TestCase):
         self.config = yaml.safe_load(
             (Path(__file__).resolve().parents[1] / "agent/config/AttackConfig.yaml").read_text()
         )
-        self.config["planner_source"] = "groq"
-        self.config["planner_model"] = "openai/gpt-oss-120b"
-        self.config["interpreter_source"] = "groq"
-        self.config["interpreter_model"] = "openai/gpt-oss-120b"
+        self.config["default_provider"] = "groq"
         self.config["default_target"] = "ubuntu"
 
     def test_groq_uses_its_own_key_and_endpoint(self):

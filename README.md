@@ -73,17 +73,12 @@ targets:                     # Named SSH target profiles
     user: admin
     password: admin
 default_target: bot1          # Which profile to load by default
-planner_source: "openai"     # Default when -p is omitted
-planner_model: "gpt-5.6-sol"
+default_provider: openai    # Used when -p is omitted
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
-summarizer_source: "openai"  # openai | ollama | cesnet | groq
-summarizer_model: "gpt-6.1-sol"
 summarizer_temperature: 1.0
-interpreter_source: "openai"  # openai | ollama | cesnet | groq
-interpreter_model: "gpt-5.6-sol"
 interpreter_temperature: 1.0
-model_presets:               # -p selects all three roles from one preset
+model_presets:               # -p overrides default_provider
   openai:
     planner: gpt-5.6-sol
     # planner: gpt-6.1-sol
@@ -107,12 +102,12 @@ Use `password_env` to read a target password from the named environment variable
 
 The `llm_providers` section declares connection details for each LLM backend. Providers of kind `openai` use the OpenAI-compatible API, while providers of kind `ollama` route to a local Ollama daemon (either via `host`/`port` or a `base_url`).
 
-Use `python aracne.py -p cesnet -g "..."` to select the CESNET preset, or `-p openai`, `-p groq`, or `-p ollama`. Each preset selects the planner, interpreter, and summarizer model. Without `-p`, the three `*_source` and `*_model` fields above remain in effect. The default config keeps alternative model IDs as commented lines beside each active role model. To change a preset, comment its active role line and uncomment one alternative for that role. Only the selected provider needs credentials. An unknown or incomplete preset fails before the session starts.
+Use `python aracne.py -p cesnet -g "..."` to select the CESNET preset, or `-p openai`, `-p groq`, or `-p ollama`. Each preset selects the planner, interpreter, and summarizer model. Without `-p`, `default_provider` selects its preset. The default config keeps alternative model IDs as commented lines beside each active role model. To change a preset, comment its active role line and uncomment one alternative for that role. Only the selected provider needs credentials. An unknown or incomplete preset fails before the session starts. Older configs with per-role `*_source` and `*_model` fields still work when they omit `default_provider`.
 
 **Key rules**
 - Any source set to `openai` requires an API key (e.g., `OPENAI_API_KEY`, `CESNET_API_KEY`) and optionally a `base_url` declared under `llm_providers`.
 - Any source set to `ollama` must have a provider entry with connection details (host/port or `base_url`).
-- Provider names (`openai`, `ollama`, `cesnet`, etc.) are referenced by `planner_source`, `summarizer_source`, and `interpreter_source`.
+- Provider names (`openai`, `ollama`, `cesnet`, etc.) are selected by `default_provider` or `-p` and must have entries under both `model_presets` and `llm_providers`.
 - Per-role `*_temperature` values (0–2) are forwarded directly to the respective LLM API (`temperature` for OpenAI-compatible endpoints, `options.temperature` for Ollama).
 
 ### Agent prompts
@@ -146,7 +141,7 @@ If you have access to the e-INFRA deployment, create an API key in the Chat AI a
 export CESNET_API_KEY="<your token>"
 ```
 
-- Set `planner_source` or `interpreter_source` to `cesnet` in YAML. ARACNE uses `https://llm.ai.e-infra.cz/v1` by default and accepts the old Chat AI URL in older configs by redirecting it to the current endpoint.
+- Set `default_provider: cesnet` in YAML or use `-p cesnet`. ARACNE uses `https://llm.ai.e-infra.cz/v1` by default and accepts the old Chat AI URL in older configs by redirecting it to the current endpoint.
 - Choose a model listed for your key. Stable aliases such as `glm`, `mini`, and `coder` are available; the exact model list can change.
 
 Example curl call:
@@ -242,7 +237,7 @@ If a plan, generated command, or command output specifically asks for human or s
 ### Switching Models
 
 - To use OpenAI for planner/summarizer: set `*_source: "openai"` and corresponding `*_model`.
-- To run entirely on Ollama: set `planner_source: "ollama"`, `summarizer_source: "ollama"`, `interpreter_source: "ollama"` (or `"local"`) and supply models that exist locally (e.g., `qwen3:1.7b`).
+- To run entirely on Ollama: set `default_provider: ollama` or use `-p ollama`, and set the Ollama preset to models installed locally (e.g., `qwen3:1.7b`).
 
 ### Docker
 
