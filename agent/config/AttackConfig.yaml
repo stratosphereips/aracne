@@ -15,16 +15,16 @@ goal: null
 #planner_model: gpt-oss-120b
 #planner_model: mistral-medium-3.5
 #--
-planner_source: openai
+#planner_source: openai
 #planner_model: gpt-6.1-sol
 #planner_model: gpt-6-astra
 #planner_model: gpt-5.6-sol
 #planner_model: gpt-5.6-terra
 #planner_model: gpt-5.6-luna
-planner_model: gpt-6-luna
+#planner_model: gpt-6-luna
 #--
-#planner_source: groq
-#planner_model: openai/gpt-oss-120b
+planner_source: groq
+planner_model: openai/gpt-oss-120b
 #--
 #planner_source: ollama
 #planner_model: qwen3:1.7b
@@ -78,16 +78,16 @@ summarizer_temperature: 1.0
 #interpreter_source: ollama
 #interpreter_model: qwen3:1.7b
 #--
-interpreter_source: openai
+#interpreter_source: openai
 #interpreter_model: gpt-6.1-sol
 #interpreter_model: gpt-6-astra
 #interpreter_model: gpt-5.6-sol
 #interpreter_model: gpt-5.6-terra
 #interpreter_model: gpt-5.6-luna
-interpreter_model: gpt-6-luna
+#interpreter_model: gpt-6-luna
 #--
-#interpreter_source: groq
-#interpreter_model: openai/gpt-oss-120b
+interpreter_source: groq
+interpreter_model: openai/gpt-oss-120b
 #--
 interpreter_temperature: 1.0
 

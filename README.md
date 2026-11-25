@@ -33,7 +33,7 @@ pip install -r requirements.txt
 cp env_EXAMPLE .env
 ```
 
-Populate `.env` with `OPENAI_API_KEY` for the default OpenAI models and `BOT1_SSH_PASSWORD` for the default SSH target. Add `CESNET_API_KEY` when using CESNET. SSH target profiles are configured in `agent/config/AttackConfig.yaml`.
+Populate `.env` with `GROQ_API_KEY` for the default Groq planner and interpreter, and `BOT1_SSH_PASSWORD` for the default SSH target. Add `OPENAI_API_KEY` if you enable the default OpenAI summarizer, or `CESNET_API_KEY` when using CESNET. SSH target profiles are configured in `agent/config/AttackConfig.yaml`.
 
 ## Configuration
 
@@ -73,15 +73,15 @@ targets:                     # Named SSH target profiles
     user: admin
     password: admin
 default_target: bot1          # Which profile to load by default
-planner_source: "openai"     # openai | ollama | cesnet | groq
-planner_model: "gpt-6-luna"
+planner_source: "groq"       # openai | ollama | cesnet | groq
+planner_model: "openai/gpt-oss-120b"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
 summarizer_source: "openai"  # openai | ollama | cesnet | groq
 summarizer_model: "gpt-6.1-sol"
 summarizer_temperature: 1.0
-interpreter_source: "openai"  # openai | ollama | cesnet | groq
-interpreter_model: "gpt-6-luna"
+interpreter_source: "groq"    # openai | ollama | cesnet | groq
+interpreter_model: "openai/gpt-oss-120b"
 interpreter_temperature: 1.0
 action_limit: 50
 ```
@@ -201,6 +201,7 @@ python aracne.py \
 Nmap scans can run for up to 30 minutes. ARACNE reports progress while waiting and captures the completed scan output. The interpreter's command is executed as generated.
 
 Use `--interactive` (`-i`) to keep the CLI open for more goals. Press Ctrl+C while a command runs to interrupt it on the remote SSH shell and enter a new goal. After each goal finishes, enter another goal or type `quit` to exit. Each new goal starts a new run and SSH connection.
+At a goal prompt, use Up and Down to revisit goals you entered earlier. ARACNE saves accepted goals across runs in `logs/input_history` with owner-only permissions. Approval answers and `quit` are not saved. Arrow-key history requires an interactive terminal with Python readline support.
 Interactive goals share session memory: recent commands and results stay available to the planner, and older or large results are condensed automatically. The full output remains in the logs. Session memory is saved after each action and works without `--summarize`.
 
 To continue a saved session, run `python aracne.py --load-session` (or `--load-session latest`). ARACNE loads the history and waits for a new goal before contacting the LLM. Add `-g "new goal"` to provide that goal immediately. You can also pass a session JSON path, an experiment directory, or its `context.log` to `--load-session`. Session files are stored in `logs/sessions/`; `latest` imports the newest archived experiment if no session file exists.

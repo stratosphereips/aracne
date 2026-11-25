@@ -28,6 +28,7 @@ from lib.command_approval import (
     requests_human_confirmation,
     review_reasons,
 )
+from lib.input_history import GoalHistory
 from lib.memory import InteractiveMemory, report_relevant_output
 from lib.utils import (
     MODELS,
@@ -57,6 +58,7 @@ AGENT_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = AGENT_ROOT.parent
 EXPERIMENTS_ROOT = REPO_ROOT / "logs" / "experiments"
 SESSIONS_ROOT = REPO_ROOT / "logs" / "sessions"
+INPUT_HISTORY_PATH = REPO_ROOT / "logs" / "input_history"
 CURRENT_EXPERIMENT_DIR: Path | None = None
 CURRENT_EXPERIMENT_LOG: Path | None = None
 EXPERIMENT_START_TIME: datetime.datetime | None = None
@@ -968,7 +970,7 @@ def parse_arguments():
    return parser.parse_args()
 
 
-def prompt_new_goal():
+def prompt_new_goal(history=None):
     """Wait for a nonempty instruction before running another goal."""
     while True:
         try:
@@ -979,6 +981,8 @@ def prompt_new_goal():
         if goal.lower() in {"quit", "exit"}:
             return None
         if goal:
+            if history is not None:
+                history.add(goal)
             return goal
         print_status("ℹ️", "Please enter a goal or 'quit'.", Palette.YELLOW)
 
@@ -986,6 +990,8 @@ def prompt_new_goal():
 def main():
     args = parse_arguments()
     global ollama_url, summarize, action_limit
+    input_history = GoalHistory(INPUT_HISTORY_PATH)
+    input_history.enable()
 
     print_banner()
 
@@ -1004,6 +1010,8 @@ def main():
             print_status("❌", f"Could not load session: {exc}", Palette.RED, bold=True)
             return
         args.interactive = True
+        if memory.current_goal:
+            input_history.add(memory.current_goal)
     else:
         memory = InteractiveMemory.new_session(SESSIONS_ROOT) if args.interactive else None
 
@@ -1014,11 +1022,12 @@ def main():
         summarize = args.summarize
     if load_session and not args.goal:
         print_status("💾", f"Session loaded: {memory.session_path}", Palette.CYAN)
-        goal = prompt_new_goal()
+        goal = prompt_new_goal(input_history)
         if goal is None:
             return
     elif args.goal:
         goal = args.goal
+        input_history.add(goal)
     elif config_goal and config_goal != '':
         goal = config_goal
     else:
@@ -1042,12 +1051,14 @@ def main():
             if selection.isdigit():
                 try:
                     goal = set_goal(goals, int(selection))
+                    input_history.add(goal)
                     break
                 except ValueError:
                     print_status("⚠️", f"Choose a number between 1 and {len(goals)}.", Palette.RED)
                     continue
             else:
                 goal = selection
+                input_history.add(goal)
                 break
 
     print()
@@ -1102,7 +1113,7 @@ def main():
 
         if not args.interactive:
             return
-        goal = prompt_new_goal()
+        goal = prompt_new_goal(input_history)
         if goal is None:
             return
 
