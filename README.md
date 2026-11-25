@@ -229,7 +229,7 @@ Nmap scans can run for up to 30 minutes. ARACNE reports progress while waiting a
 
 Use `--interactive` (`-i`) to keep the CLI open for more goals. Press Ctrl+C while a command runs to interrupt it on the remote SSH shell and enter a new goal. After each goal finishes, enter another goal or type `quit` to exit. Each new goal starts a new run and SSH connection.
 At a goal prompt, use Up and Down to revisit goals you entered earlier. ARACNE saves accepted goals across runs in `logs/input_history` with owner-only permissions. Approval answers and `quit` are not saved. Arrow-key history requires an interactive terminal with Python readline support.
-Interactive goals share session memory: recent commands and results stay available to the planner, and older or large results are condensed automatically. The full output remains in the logs. Session memory is saved after each action and works without `--summarize`.
+Every run creates a resumable session snapshot, including one-shot runs without `-i`. Interactive goals share session memory: recent commands and results stay available to the planner, and older or large results are condensed automatically. The full output remains in the logs. Session memory is saved after each action and works without `--summarize`.
 
 To continue a saved session, run `python aracne.py --load-session` (or `--load-session latest`). ARACNE loads the history and waits for a new goal before contacting the LLM. Add `-g "new goal"` to provide that goal immediately. You can also pass a session JSON path, an experiment directory, or its `context.log` to `--load-session`. Session files are stored in `logs/sessions/`; `latest` imports the newest archived experiment if no session file exists.
 

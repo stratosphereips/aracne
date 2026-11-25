@@ -1033,7 +1033,9 @@ def main():
         if memory.current_goal:
             input_history.add(memory.current_goal)
     else:
-        memory = InteractiveMemory.new_session(SESSIONS_ROOT) if args.interactive else None
+        # Keep a resumable snapshot for one-shot runs too; --interactive only
+        # controls whether ARACNE prompts for another goal after this one.
+        memory = InteractiveMemory.new_session(SESSIONS_ROOT)
     SESSION_PATH_AT_EXIT = memory.session_path if memory else None
 
     # Overwrite with parameter values if provided
@@ -1082,6 +1084,10 @@ def main():
                 input_history.add(goal)
                 break
 
+    # Persist the selected goal before preflight so even an early connection or
+    # provider failure leaves a session file that can be resumed.
+    memory.start_goal(goal)
+
     print()
     print_status(
         "🛠️",
@@ -1113,8 +1119,6 @@ def main():
 
     while True:
         try:
-            if memory:
-                memory.start_goal(goal)
             update_logs(goal, summarize)
             outcome = execute_agent(goal, summarize, interactive=args.interactive, memory=memory)
             if outcome == "denied" and not args.interactive:
@@ -1123,6 +1127,7 @@ def main():
                 memory.current_goal = goal
                 memory.summary = _context_snapshot()
                 memory.save()
+                SESSION_PATH_AT_EXIT = memory.session_path
         except LLMProviderError as err:
             print_status("❌", f"{err}", Palette.RED, bold=True)
             if not args.interactive:
@@ -1137,6 +1142,7 @@ def main():
         goal = prompt_new_goal(input_history)
         if goal is None:
             return
+        memory.start_goal(goal)
 
 
 if __name__ == "__main__":
