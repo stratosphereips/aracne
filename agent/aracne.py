@@ -1040,7 +1040,7 @@ def parse_arguments():
    return parser.parse_args()
 
 
-def prompt_new_goal(history=None):
+def prompt_new_goal(history=None, memory=None):
     """Wait for a nonempty instruction before running another goal."""
     while True:
         try:
@@ -1050,6 +1050,17 @@ def prompt_new_goal(history=None):
             return None
         if goal.lower() in {"quit", "exit"}:
             return None
+        if goal.lower() == "/compress":
+            if memory is None:
+                print_status("ℹ️", "There is no saved session context to compress.", Palette.YELLOW)
+            else:
+                before, after = memory.compress_context()
+                print_status(
+                    "🧠",
+                    f"Session context compressed for the current goal ({before} → {after} characters).",
+                    Palette.CYAN,
+                )
+            continue
         if goal:
             if history is not None:
                 history.add(goal)
@@ -1100,7 +1111,7 @@ def main():
         summarize = args.summarize
     if load_session and not args.goal:
         print_status("💾", f"Session loaded: {memory.session_path}", Palette.CYAN)
-        goal = prompt_new_goal(input_history)
+        goal = prompt_new_goal(input_history, memory)
         if goal is None:
             return
     elif args.goal:
@@ -1194,7 +1205,7 @@ def main():
 
         if not args.interactive:
             return
-        goal = prompt_new_goal(input_history)
+        goal = prompt_new_goal(input_history, memory)
         if goal is None:
             return
         memory.start_goal(goal)

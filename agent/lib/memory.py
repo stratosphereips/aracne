@@ -144,9 +144,13 @@ class InteractiveMemory:
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
 
-    def _compress(self, text, purpose):
+    def _compress(self, text, purpose, goal=None):
+        goal = (goal or self.current_goal or "unspecified")[:500]
         prompt = (
             "Update ARACNE's evidence record for a continuing terminal session. "
+            f"The current goal is: {goal}. Keep information that helps achieve or verify this goal; "
+            "discard unrelated older goals and low-value detail first. Preserve current scope, key "
+            "evidence, results, blockers, and decisions. "
             "Preserve exact relevant tested scope, IP addresses, hostnames, ports, protocols, services, "
             "versions, paths, commands, exit statuses, timeouts, and human decisions. Distinguish "
             "verified results from scanner guesses, errors, and incomplete output. A missing response "
@@ -164,7 +168,22 @@ class InteractiveMemory:
         except Exception:
             pass
         # A provider failure must not stop the interactive session.
-        return text[-self.MAX_SUMMARY_CHARS:]
+        fallback_prefix = f"CURRENT GOAL: {goal}\n"
+        return fallback_prefix + text[-(self.MAX_SUMMARY_CHARS - len(fallback_prefix)):]
+
+    def compress_context(self):
+        """Force older and recent session context into one goal-focused summary."""
+        before = len(self.context())
+        if not before:
+            return before, before
+        self.summary = self._compress(
+            self.context(),
+            "manual interactive /compress request",
+            goal=self.current_goal,
+        )
+        self.recent.clear()
+        self.save()
+        return before, len(self.context())
 
     def start_goal(self, goal):
         self.current_goal = goal
@@ -179,7 +198,7 @@ class InteractiveMemory:
             sample = output
             if len(output) > 12000:
                 sample = output[:6000] + f"\n[... {len(output) - 12000} characters omitted ...]\n" + output[-6000:]
-            output = self._compress(sample, "large command output")
+            output = self._compress(sample, "large command output", goal=goal)
         entry = (
             f"GOAL: {goal[:500]}\nCOMMAND: {command[:1000]}\n"
             f"EXIT STATUS: {result.get('exit_status')}\n"
@@ -195,6 +214,7 @@ class InteractiveMemory:
             self.summary = self._compress(
                 f"Previous summary:\n{self.summary}\n\nOlder event:\n{oldest}",
                 "cumulative memory across goals",
+                goal=self.current_goal,
             )
 
     def context(self):
