@@ -82,11 +82,11 @@ action_limit: 50
 check_command_authorization: false
 
 targets:
-  bot1:
-    host: 127.0.0.1
+  localhost:
+    host: localhost
     port: 22
     user: pedro
-    password_env: BOT1_SSH_PASSWORD
+    password_env: LOCALHOST_SSH_PASSWORD
   ubuntu:
     host: localhost
     port: 2222
@@ -97,7 +97,7 @@ targets:
     port: 22
     user: admin
     password: admin
-default_target: bot1
+default_target: localhost
 
 
 llm_providers:

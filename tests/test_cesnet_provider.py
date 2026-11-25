@@ -15,7 +15,7 @@ from lib import utils
 class CesnetProviderTests(unittest.TestCase):
     def test_provider_override_selects_all_role_presets(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(
-            os.environ, {"CESNET_API_KEY": "test-key", "BOT1_SSH_PASSWORD": "test-password"}
+            os.environ, {"CESNET_API_KEY": "test-key", "LOCALHOST_SSH_PASSWORD": "test-password"}
         ):
             config = yaml.safe_load(
                 (Path(__file__).resolve().parents[1] / "agent/config/AttackConfig.yaml").read_text()
@@ -44,7 +44,7 @@ class CesnetProviderTests(unittest.TestCase):
         return path
 
     def test_legacy_endpoint_uses_documented_api_url(self):
-        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CESNET_API_KEY": "test-key", "BOT1_SSH_PASSWORD": "test-password"}):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CESNET_API_KEY": "test-key", "LOCALHOST_SSH_PASSWORD": "test-password"}):
             path = self._config_path(directory, utils.CESNET_LEGACY_BASE_URL)
             utils.load_environment(None, path)
         self.assertEqual(utils.LLM_PROVIDERS["cesnet"]["base_url"], utils.CESNET_BASE_URL)
@@ -53,7 +53,7 @@ class CesnetProviderTests(unittest.TestCase):
 
     def test_cesnet_key_does_not_fall_back_to_openai_key(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(
-            os.environ, {"CESNET_API_KEY": "", "OPENAI_API_KEY": "openai-only", "BOT1_SSH_PASSWORD": "test-password"}
+            os.environ, {"CESNET_API_KEY": "", "OPENAI_API_KEY": "openai-only", "LOCALHOST_SSH_PASSWORD": "test-password"}
         ):
             path = self._config_path(directory, utils.CESNET_BASE_URL)
             with self.assertRaisesRegex(ValueError, "Missing CESNET_API_KEY"):
@@ -61,8 +61,8 @@ class CesnetProviderTests(unittest.TestCase):
 
     def test_default_target_requires_password_environment_variable(self):
         config = yaml.safe_load((Path(__file__).resolve().parents[1] / "agent/config/AttackConfig.yaml").read_text())
-        with patch.dict(os.environ, {"BOT1_SSH_PASSWORD": ""}):
-            with self.assertRaisesRegex(ValueError, "BOT1_SSH_PASSWORD"):
+        with patch.dict(os.environ, {"LOCALHOST_SSH_PASSWORD": ""}):
+            with self.assertRaisesRegex(ValueError, "LOCALHOST_SSH_PASSWORD"):
                 utils._select_target(config)
 
     def test_preflight_checks_actual_completion(self):

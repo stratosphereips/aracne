@@ -33,7 +33,7 @@ pip install -r requirements.txt
 cp env_EXAMPLE .env
 ```
 
-Populate `.env` with `BOT1_SSH_PASSWORD` for the default SSH target and the API key required by each selected model provider (`OPENAI_API_KEY`, `GROQ_API_KEY`, or `CESNET_API_KEY`). SSH target profiles and model selections are configured in `agent/config/AttackConfig.yaml`.
+Populate `.env` with `LOCALHOST_SSH_PASSWORD` for the default SSH target and the API key required by each selected model provider (`OPENAI_API_KEY`, `GROQ_API_KEY`, or `CESNET_API_KEY`). SSH target profiles and model selections are configured in `agent/config/AttackConfig.yaml`.
 
 ## Configuration
 
@@ -57,11 +57,11 @@ llm_providers:
     base_url: https://api.groq.com/openai/v1
     api_key_env: GROQ_API_KEY
 targets:                     # Named SSH target profiles
-  bot1:
-    host: 127.0.0.1
+  localhost:
+    host: localhost
     port: 22
     user: pedro
-    password_env: BOT1_SSH_PASSWORD
+    password_env: LOCALHOST_SSH_PASSWORD
   ubuntu:
     host: localhost
     port: 2222
@@ -72,7 +72,7 @@ targets:                     # Named SSH target profiles
     port: 22
     user: admin
     password: admin
-default_target: bot1          # Which profile to load by default
+default_target: localhost     # Which profile to load by default
 default_provider: openai    # Used when -p is omitted
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
@@ -98,7 +98,7 @@ check_command_authorization: false  # Enable the pre-command approval gate
 ```
 
 You can switch targets by editing the `default_target` value or adding additional entries under `targets` for your own machines.
-Use `password_env` to read a target password from the named environment variable instead of storing it in YAML. The default `bot1` profile reads `BOT1_SSH_PASSWORD` from `.env` or the process environment.
+Use `password_env` to read a target password from the named environment variable instead of storing it in YAML. The default `localhost` profile reads `LOCALHOST_SSH_PASSWORD` from `.env` or the process environment.
 
 The `llm_providers` section declares connection details for each LLM backend. Providers of kind `openai` use the OpenAI-compatible API, while providers of kind `ollama` route to a local Ollama daemon (either via `host`/`port` or a `base_url`).
 
