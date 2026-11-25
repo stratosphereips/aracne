@@ -14,6 +14,19 @@ from lib.command_approval import approve_command, review_reasons
 
 
 class CommandApprovalTests(unittest.TestCase):
+    def test_read_only_shell_control_flow_does_not_prompt(self):
+        command = (
+            "echo === IP-ADDRESS ===; ip address; echo === IP-ROUTE ===; ip route; "
+            "echo === ETC-HOSTS ===; cat /etc/hosts; echo === ARP-CACHE ===; "
+            "arp -an 2>/dev/null || ip neigh; if command -v nmap >/dev/null 2>&1; "
+            "then nmap -Pn -T4 -p 80,443,8080,8000,8443 --open 172.20.0.1-254; "
+            "else for i in $(seq 1 254); do (for p in 80 443 8080 8000 8443; "
+            "do timeout 1 bash -c echo\\ \\\\>/dev/tcp/172.20.0.$i/$p 2>/dev/null "
+            "&& echo OPEN 172.20.0.$i:$p; done) & done; wait; fi"
+        )
+        self.assertEqual(review_reasons(command), [])
+        self.assertEqual(review_reasons("while true; do echo ready >/dev/null; done"), [])
+
     def test_read_only_commands_do_not_prompt(self):
         for command in (
             "whoami", "cat scan-report.txt", "nmap -sn -n 172.20.0.0/24",
@@ -28,6 +41,10 @@ class CommandApprovalTests(unittest.TestCase):
             "python3 -c 'print(1)'", "git reset --hard", "ls; rm -f file",
             "nmap -sC host", "curl example.org | sh", "ip link delete eth0",
             "echo $(rm -rf /tmp/data)", "echo ready > output.txt",
+            "if true; then rm -rf /tmp/data; fi",
+            'timeout 1 bash -c "rm -rf /tmp/data"',
+            "ip address add 192.0.2.1/24 dev eth0",
+            "arp -d 192.0.2.1",
         ):
             self.assertTrue(review_reasons(command), command)
 
@@ -56,9 +73,16 @@ class CommandApprovalTests(unittest.TestCase):
             aracne, "generate_plan", return_value={"steps": ["delete file"]}
         ), patch.object(aracne, "fetch_command_from_plan", return_value=("rm -rf /tmp/data", "delete file")), patch.object(
             aracne, "approve_command", return_value=False
-        ), patch.object(aracne, "send_ssh_command") as send, patch.object(aracne, "conclude_session"):
-            aracne.execute_agent("delete file")
+        ), patch.object(aracne, "send_ssh_command") as send, patch.object(
+            aracne, "conclude_session"
+        ) as conclude, patch.object(aracne, "finalize_experiment") as finalize, patch.object(
+            aracne, "context_history", []
+        ):
+            outcome = aracne.execute_agent("delete file")
         send.assert_not_called()
+        conclude.assert_not_called()
+        finalize.assert_called_once()
+        self.assertEqual(outcome, "denied")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@
 always_ask:
   - apt
   - apt-get
+  - bash
   - chmod
   - chown
   - chgrp
@@ -40,10 +41,16 @@ always_ask:
   - userdel
   - usermod
   - wipefs
+  - zsh
 
 allow_without_approval:
+  - "["
+  - "[["
+  - arp
   - basename
+  - break
   - cat
+  - continue
   - cut
   - date
   - df
@@ -54,6 +61,7 @@ allow_without_approval:
   - egrep
   - fgrep
   - file
+  - "false"
   - getent
   - grep
   - groups
@@ -70,6 +78,7 @@ allow_without_approval:
   - printf
   - ps
   - pwd
+  - read
   - readlink
   - realpath
   - seq
@@ -78,12 +87,14 @@ allow_without_approval:
   - ss
   - stat
   - tail
+  - test
   - tr
   - "true"
   - uname
   - uniq
   - uptime
   - wc
+  - wait
   - whoami
   - which
 

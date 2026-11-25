@@ -91,14 +91,17 @@ class HumanConfirmationTests(unittest.TestCase):
             "output": output, "exit_status": 0, "timed_out": False,
             "duration": 0.1, "error": None,
         }) as send, patch.object(aracne, "conclude_session") as conclude, patch.object(
-            aracne, "action_limit", 5
+            aracne, "finalize_experiment"
+        ) as finalize, patch.object(aracne, "action_limit", 5
         ), patch.object(aracne, "context_history", []):
-            aracne.execute_agent("Check status")
+            outcome = aracne.execute_agent("Check status")
 
         send.assert_called_once()
         ask.assert_called_once()
         generate.assert_called_once()
-        self.assertEqual(conclude.call_args.args[1], "denied")
+        conclude.assert_not_called()
+        finalize.assert_called_once()
+        self.assertEqual(outcome, "denied")
 
     def test_command_output_approval_is_passed_to_next_plan(self):
         client = types.SimpleNamespace(close=lambda: None)

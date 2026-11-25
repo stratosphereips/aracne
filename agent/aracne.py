@@ -815,7 +815,9 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
             reasons = review_reasons(command)
             if not approve_command(command, reasons):
                 print_status("⛔", "Command was not approved; stopping this goal.", Palette.YELLOW)
-                log_context_event("Command Not Executed", f"Approval declined for: {command}")
+                declined_entry = f"GOAL: {goal}\nCOMMAND NOT EXECUTED: {command}\nREASON: Human approval was not given."
+                context_history.append(declined_entry)
+                log_context_event("Command Not Executed", declined_entry)
                 if memory:
                     memory.record_action(goal, command, {
                         "output": "Not executed: human approval was not given.",
@@ -951,9 +953,13 @@ def execute_agent(goal, summarize=False, interactive=False, memory=None):
        if not final_summary_generated:
            outcome = session_outcome or "incomplete"
            reason = session_reason or "Session ended without explicit goal confirmation."
-           conclude_session(goal, outcome, reason, memory=memory)
+           if outcome == "denied":
+               finalize_experiment(goal, outcome, reason, "")
+           else:
+               conclude_session(goal, outcome, reason, memory=memory)
        if client:
            client.close()
+   return session_outcome
 
 
 def parse_arguments():
@@ -1086,7 +1092,13 @@ def main():
             if memory:
                 memory.start_goal(goal)
             update_logs(goal, summarize)
-            execute_agent(goal, summarize, interactive=args.interactive, memory=memory)
+            outcome = execute_agent(goal, summarize, interactive=args.interactive, memory=memory)
+            if outcome == "denied" and not args.interactive:
+                args.interactive = True
+                memory = InteractiveMemory.new_session(SESSIONS_ROOT)
+                memory.current_goal = goal
+                memory.summary = _context_snapshot()
+                memory.save()
         except LLMProviderError as err:
             print_status("❌", f"{err}", Palette.RED, bold=True)
             if not args.interactive:

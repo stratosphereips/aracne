@@ -197,6 +197,25 @@ class CommandExecutionTests(unittest.TestCase):
         self.assertEqual(execute.call_args.args[0], "new goal")
         user_input.assert_called_once()
 
+    def test_declined_command_returns_to_goal_prompt_without_interactive_flag(self):
+        args = Namespace(env=".env", config="config/AttackConfig.yaml", goal="first", ollama_ip=None,
+                         summarize=False, goals_file="", interactive=False, load_session=None)
+        with tempfile.TemporaryDirectory() as session_dir, patch.object(
+            aracne, "SESSIONS_ROOT", Path(session_dir)
+        ), patch.object(aracne, "parse_arguments", return_value=args), patch.object(
+            aracne, "setup_env", return_value=(None, False, None, 2)
+        ), patch.object(aracne, "verify_llm_connectivity"), patch.object(
+            aracne, "print_llm_overview"
+        ), patch.object(aracne, "update_logs"), patch.object(
+            aracne, "execute_agent", side_effect=["denied", None]
+        ) as execute, patch.object(
+            aracne, "context_history", ["GOAL: first\nCOMMAND NOT EXECUTED: rm file"]
+        ), patch("builtins.input", side_effect=["new instruction", "quit"]):
+            aracne.main()
+        self.assertEqual([call.args[0] for call in execute.call_args_list], ["first", "new instruction"])
+        self.assertTrue(args.interactive)
+        self.assertIn("COMMAND NOT EXECUTED", execute.call_args_list[1].kwargs["memory"].context())
+
     def test_interpreter_command_is_not_rewritten(self):
         generated = "nmap -sn -R 172.20.0.0/16"
         with patch.object(interpreter, "load_prompt", return_value="{instruction}"), patch.object(

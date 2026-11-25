@@ -10,6 +10,10 @@ import yaml
 
 POLICY_PATH = Path(__file__).resolve().parents[1] / "config" / "commandApproval.yaml"
 SEPARATORS = {"&&", "||", ";", "|", "&", "\n"}
+SHELL_PUNCTUATION = set(";&|()<>\n")
+SHELL_CONTROL = {"if", "elif", "then", "else", "do", "while", "until"}
+SHELL_HEADERS = {"for", "select", "case"}
+SHELL_ENDINGS = {"fi", "done", "esac"}
 
 
 def _load_policy(path):
@@ -35,7 +39,15 @@ def _shell_tokens(command):
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
     lexer.commenters = ""
-    return list(lexer)
+    tokens = []
+    for token in lexer:
+        if len(token) > 1 and set(token) <= SHELL_PUNCTUATION and token not in {
+            "&&", "||", ">>", "<<", "<<<", ">&", "&>", "&>>", ">|",
+        }:
+            tokens.extend(re.findall(r"&&|\|\||&>>|>>|<<|>&|&>|>\||[;&|()<>\n]", token))
+        else:
+            tokens.append(token)
+    return tokens
 
 
 def _command_segments(tokens):
@@ -53,6 +65,12 @@ def _command_segments(tokens):
 
 def _executable(segment):
     for index, token in enumerate(segment):
+        if token in SHELL_HEADERS:
+            return None, []
+        if token in SHELL_ENDINGS:
+            continue
+        if token in SHELL_CONTROL:
+            continue
         if token in {"(", ")"} or re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*=.*", token):
             continue
         if token in {"<", "<<", "<<<", ">", ">>", ">&", "&>", ">&>"}:
@@ -78,9 +96,12 @@ def _review(command, policy, depth=0):
     if re.search(r"[<>]\(", command):
         reasons.append("Contains process substitution")
     for index, token in enumerate(tokens):
-        if token in {">", ">>", ">|", "&>", "&>>"} or (token == ">&" and (
-            index + 1 >= len(tokens) or not tokens[index + 1].isdigit()
-        )):
+        target = tokens[index + 1] if index + 1 < len(tokens) else ""
+        if token in {">", ">>", ">|", "&>", "&>>", ">&"} and not (
+            target == "/dev/null"
+            or target.startswith(("/dev/tcp/", "/dev/udp/"))
+            or (token == ">&" and target.isdigit())
+        ):
             reasons.append("Writes through shell output redirection")
             break
 
@@ -88,13 +109,30 @@ def _review(command, policy, depth=0):
         executable, arguments = _executable(segment)
         if not executable:
             continue
+        if executable == "command" and arguments[:1] in (["-v"], ["-V"]):
+            continue
+        if executable == "timeout":
+            nested = next((index for index, word in enumerate(arguments) if not word.startswith("-") and not re.fullmatch(r"\d+(?:\.\d+)?[smhd]?", word)), None)
+            if nested is not None:
+                reasons.extend(_review(" ".join(arguments[nested:]), policy, depth + 1))
+            continue
+        if executable in {"bash", "sh", "zsh"} and "-c" in arguments:
+            script_index = arguments.index("-c") + 1
+            if script_index < len(arguments):
+                reasons.extend(_review(arguments[script_index], policy, depth + 1))
+            else:
+                reasons.append(f"'{executable} -c' has no script to review")
+            continue
         if executable in always_ask:
             reasons.append(f"'{executable}' is configured to require approval")
         elif executable == "ip":
-            if not any(word in {"show", "get"} for word in arguments) or any(
+            if any(
                 word in {"add", "del", "delete", "set", "flush", "replace"} for word in arguments
             ):
                 reasons.append("'ip' may change network configuration")
+        elif executable == "arp":
+            if any(word in {"-d", "-s", "--delete", "--set"} for word in arguments):
+                reasons.append("'arp' may change the neighbor cache")
         elif executable not in allowed and ask_unknown:
             reasons.append(f"'{executable}' is not listed as safe")
         if executable == "nmap" and (
@@ -135,7 +173,7 @@ def approve_command(command: str, reasons: list[str], *, input_fn=input, is_tty=
         print("⛔ No interactive terminal is available; command not executed.")
         return False
     try:
-        answer = input_fn("Type 'yes' to execute, or anything else to stop this goal: ")
+        answer = input_fn("Type 'yes' to execute, or anything else for a new goal: ")
     except (EOFError, KeyboardInterrupt):
         print("\n⛔ Command not approved.")
         return False
@@ -170,7 +208,7 @@ def request_human_confirmation(message: str, *, input_fn=input, is_tty=None) -> 
         print("⛔ No interactive terminal is available; approval not given.")
         return False
     try:
-        answer = input_fn("Type 'yes' if you approve, or anything else to stop this goal: ")
+        answer = input_fn("Type 'yes' if you approve, or anything else for a new goal: ")
     except (EOFError, KeyboardInterrupt):
         print("\n⛔ Approval not given.")
         return False
