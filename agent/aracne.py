@@ -1044,7 +1044,9 @@ def prompt_new_goal(history=None, memory=None):
     """Wait for a nonempty instruction before running another goal."""
     while True:
         try:
-            goal = input(style("New goal (or 'quit'): ", Palette.BOLD)).strip()
+            # Readline counts ANSI styling as prompt width and can leave stale
+            # characters behind when Up/Down redraws a long history entry.
+            goal = input("New goal (or 'quit'): ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             return None
@@ -1138,7 +1140,7 @@ def main():
         print(style("  ✍️  Type your own goal at the prompt to override the list.", Palette.GRAY))
 
         while True:
-            selection = input(style("Select a goal by number or type a new goal: ", Palette.BOLD)).strip()
+            selection = input("Select a goal by number or type a new goal: ").strip()
             if not selection:
                 print_status("ℹ️", "Please enter a value.", Palette.YELLOW)
                 continue
