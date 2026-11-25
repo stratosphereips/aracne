@@ -1,95 +1,40 @@
 goal: null
 
-#planner_source: cesnet
-#planner_model: kimi-k3.1-pro
-# CESNET alternatives from the README ranking; uncomment one model at a time.
-#planner_model: glm-5.3
-#planner_model: deepseek-v4.1-flash-thinking
-#planner_model: kimi-k3
-#planner_model: qwen3.8-flash-next
-#planner_model: deepseek-v4.1-flash
-#planner_model: glm-5
-#planner_model: glm-5.3-flash
-#planner_model: qwen3.8-27b
-#planner_model: qwen3.5-int4
-#planner_model: gpt-oss-120b
-#planner_model: mistral-medium-3.5
-#--
+# Default role routing. -p/--provider uses the matching preset below instead.
 planner_source: openai
-#planner_model: gpt-6.1-sol
-#planner_model: gpt-6-astra
-planner_model: gpt-5.6-sol
-#planner_model: gpt-5.6-terra
-#planner_model: gpt-5.6-luna
-#planner_model: gpt-6-luna
-#--
-planner_source: groq
-planner_model: openai/gpt-oss-120b
-#--
-#planner_source: ollama
-#planner_model: qwen3:1.7b
-#planner_source: cesnet
-#planner_model: deepseek-r1
-#--
+planner_model: gpt-6.1-sol
 planner_temperature: 1.0
-
+interpreter_source: openai
+interpreter_model: gpt-6.1-sol
+interpreter_temperature: 1.0
 summarizing: false
 summarizer_source: openai
 summarizer_model: gpt-6.1-sol
-#summarizer_model: gpt-6-astra
-#summarizer_model: gpt-5.6-sol
-#summarizer_model: gpt-5.6-terra
-#summarizer_model: gpt-5.6-luna
-#summarizer_model: gpt-6-luna
-# To use CESNET for summaries, switch summarizer_source and uncomment one model.
-#summarizer_source: cesnet
-#summarizer_model: kimi-k3.1-pro
-#summarizer_model: glm-5.3
-#summarizer_model: deepseek-v4.1-flash-thinking
-#summarizer_model: kimi-k3
-#summarizer_model: qwen3.8-flash-next
-#summarizer_model: deepseek-v4.1-flash
-#summarizer_model: glm-5
-#summarizer_model: glm-5.3-flash
-#summarizer_model: qwen3.8-27b
-#summarizer_model: qwen3.5-int4
-#summarizer_model: gpt-oss-120b
-#summarizer_model: mistral-medium-3.5
-# To use Groq for summaries, switch summarizer_source and uncomment the model.
-#summarizer_source: groq
-#summarizer_model: openai/gpt-oss-120b
 summarizer_temperature: 1.0
 
-#interpreter_source: cesnet
-#interpreter_model: kimi-k3.1-pro
-# CESNET alternatives from the README ranking; uncomment one model at a time.
-#interpreter_model: glm-5.3
-#interpreter_model: deepseek-v4.1-flash-thinking
-#interpreter_model: kimi-k3
-#interpreter_model: qwen3.8-flash-next
-#interpreter_model: deepseek-v4.1-flash
-#interpreter_model: glm-5
-#interpreter_model: glm-5.3-flash
-#interpreter_model: qwen3.8-27b
-#interpreter_model: qwen3.5-int4
-#interpreter_model: gpt-oss-120b
-#interpreter_model: mistral-medium-3.5
-#--
-#interpreter_source: ollama
-#interpreter_model: qwen3:1.7b
-#--
-interpreter_source: openai
-#interpreter_model: gpt-6.1-sol
-#interpreter_model: gpt-6-astra
-interpreter_model: gpt-5.6-sol
-#interpreter_model: gpt-5.6-terra
-#interpreter_model: gpt-5.6-luna
-#interpreter_model: gpt-6-luna
-#--
-interpreter_source: groq
-interpreter_model: openai/gpt-oss-120b
-#--
-interpreter_temperature: 1.0
+# The three role models selected by -p. Edit these IDs for your account.
+# available_models records other choices; it does not trigger extra API calls.
+model_presets:
+  openai:
+    planner: gpt-6.1-sol
+    interpreter: gpt-6.1-sol
+    summarizer: gpt-6.1-sol
+    available_models: [gpt-6-astra, gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna, gpt-6-luna]
+  cesnet:
+    planner: kimi-k3.1-pro
+    interpreter: kimi-k3.1-pro
+    summarizer: kimi-k3.1-pro
+    available_models: [glm-5.3, deepseek-v4.1-flash-thinking, kimi-k3, qwen3.8-flash-next, deepseek-v4.1-flash, glm-5, glm-5.3-flash, qwen3.8-27b, qwen3.5-int4, gpt-oss-120b, mistral-medium-3.5]
+  groq:
+    planner: openai/gpt-oss-120b
+    interpreter: openai/gpt-oss-120b
+    summarizer: openai/gpt-oss-120b
+    available_models: []
+  ollama:
+    planner: qwen3:1.7b
+    interpreter: qwen3:1.7b
+    summarizer: qwen3:1.7b
+    available_models: []
 
 action_limit: 50
 

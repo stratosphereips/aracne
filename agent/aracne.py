@@ -664,10 +664,10 @@ def update_logs(goal, summarize):
    log_context_event("Session Start", session_body)
 
 
-def setup_env(env_path, config_path=None):
+def setup_env(env_path, config_path=None, provider=None):
    """Set up environment from .env file."""
    try:
-       goal, summarize, ollama_url, action_limit = load_environment(env_path, config_path)
+       goal, summarize, ollama_url, action_limit = load_environment(env_path, config_path, provider_override=provider)
        return goal, summarize, ollama_url, action_limit
    except Exception as e:
        print(e)
@@ -964,6 +964,7 @@ def parse_arguments():
    parser.add_argument("-g", "--goal", help="Set specific goal")
    parser.add_argument("-o", "--ollama-ip",required=False, help="Set the ip where the ollama model is running.")
    parser.add_argument("-c", "--config", required=False, default="config/AttackConfig.yaml", help="Path to .yaml config file")
+   parser.add_argument("-p", "--provider", help="Use the planner, interpreter, and summarizer models preset for this provider")
    parser.add_argument("--goals-file", default="config/goals.txt", help="Path to file containing default goals")
    parser.add_argument("-i", "--interactive", action="store_true", help="Accept new goals after completion; Ctrl+C interrupts the current command")
    parser.add_argument("--load-session", nargs="?", const="latest", metavar="PATH|latest", help="Restore a saved interactive session (defaults to latest) and continue its last goal; implies --interactive")
@@ -997,7 +998,7 @@ def main():
 
     # Load default values from the configuration file
     try:
-        config_goal, summarize, ollama_url, action_limit = setup_env(args.env, args.config)
+        config_goal, summarize, ollama_url, action_limit = setup_env(args.env, args.config, getattr(args, "provider", None))
     except LLMProviderError as err:
         print_status("❌", f"{err}", Palette.RED, bold=True)
         return

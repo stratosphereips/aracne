@@ -73,16 +73,29 @@ targets:                     # Named SSH target profiles
     user: admin
     password: admin
 default_target: bot1          # Which profile to load by default
-planner_source: "groq"       # openai | ollama | cesnet | groq
-planner_model: "openai/gpt-oss-120b"
+planner_source: "openai"     # Default when -p is omitted
+planner_model: "gpt-6.1-sol"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
 summarizer_source: "openai"  # openai | ollama | cesnet | groq
 summarizer_model: "gpt-6.1-sol"
 summarizer_temperature: 1.0
-interpreter_source: "groq"    # openai | ollama | cesnet | groq
-interpreter_model: "openai/gpt-oss-120b"
+interpreter_source: "openai"  # openai | ollama | cesnet | groq
+interpreter_model: "gpt-6.1-sol"
 interpreter_temperature: 1.0
+model_presets:               # -p selects all three roles from one preset
+  openai:
+    planner: gpt-6.1-sol
+    interpreter: gpt-6.1-sol
+    summarizer: gpt-6.1-sol
+  cesnet:
+    planner: kimi-k3.1-pro
+    interpreter: kimi-k3.1-pro
+    summarizer: kimi-k3.1-pro
+  groq:
+    planner: openai/gpt-oss-120b
+    interpreter: openai/gpt-oss-120b
+    summarizer: openai/gpt-oss-120b
 action_limit: 50
 ```
 
@@ -90,6 +103,8 @@ You can switch targets by editing the `default_target` value or adding additiona
 Use `password_env` to read a target password from the named environment variable instead of storing it in YAML. The default `bot1` profile reads `BOT1_SSH_PASSWORD` from `.env` or the process environment.
 
 The `llm_providers` section declares connection details for each LLM backend. Providers of kind `openai` use the OpenAI-compatible API, while providers of kind `ollama` route to a local Ollama daemon (either via `host`/`port` or a `base_url`).
+
+Use `python aracne.py -p cesnet -g "..."` to select the CESNET preset, or `-p openai`, `-p groq`, or `-p ollama`. Each preset selects the planner, interpreter, and summarizer model. Without `-p`, the three `*_source` and `*_model` fields above remain in effect. Edit a preset's role model IDs to change what `-p` uses; `available_models` in the default config lists other choices but does not run them. Only the selected provider needs credentials. An unknown or incomplete preset fails before the session starts.
 
 **Key rules**
 - Any source set to `openai` requires an API key (e.g., `OPENAI_API_KEY`, `CESNET_API_KEY`) and optionally a `base_url` declared under `llm_providers`.
@@ -103,7 +118,7 @@ Edit the role prompts in `agent/config/plannerConfig.yml`, `agent/config/interpr
 
 The planner and interpreter prompts include the user's statement that ARACNE may run commands needed for the stated assessment and that the authorization is verified and signed. ARACNE treats this as a user assertion; it does not verify signatures or ownership. Target scope still comes from the goal, and the runtime asks before deletion operations.
 
-To use Groq, put `GROQ_API_KEY=...` in the ignored root `.env` file (or export it in the process environment). Set any role's `*_source` to `groq` and its matching `*_model` to `openai/gpt-oss-120b`. The default CLI reads the root `.env`; use `-e` to select a different file. The provider entry uses `kind: openai`, and the model is selected per role rather than in `llm_providers`.
+To use Groq, put `GROQ_API_KEY=...` in the ignored root `.env` file (or export it in the process environment), then use `-p groq`. The default CLI reads the root `.env`; use `-e` to select a different file. The provider entry uses `kind: openai`.
 
 ### OpenAI model comparison
 
@@ -151,7 +166,7 @@ List models available to your key with `curl -H "Authorization: Bearer ${CESNET_
 #### CESNET model ranking
 
 The following user-provided ranking is a qualitative guide for complex reasoning, programming, tool use, and autonomous agents as of November 25, 2026. Model availability depends on your CESNET account; check `/v1/models` before selecting an API model ID.
-The ranked IDs are listed as commented choices for each role in `agent/config/AttackConfig.yaml`; select one model per role and set its source to `cesnet`.
+The ranked IDs are listed under `model_presets.cesnet.available_models` in `agent/config/AttackConfig.yaml`. Set the three role IDs in that preset to the models available to your account, then use `-p cesnet`.
 
 | Rank | API model ID | Intelligence tier | Main strength |
 | ---: | --- | --- | --- |
@@ -191,6 +206,8 @@ optional arguments:
                         Override Ollama host/IP
   -c CONFIG, --config CONFIG
                         Path to YAML config (default: agent/config/AttackConfig.yaml)
+  -p PROVIDER, --provider PROVIDER
+                        Select the configured model preset for all three roles
 ```
 
 CLI overrides take precedence over YAML defaults. Example:

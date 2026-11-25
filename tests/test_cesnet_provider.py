@@ -13,6 +13,26 @@ from lib import utils
 
 
 class CesnetProviderTests(unittest.TestCase):
+    def test_provider_override_selects_all_role_presets(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"CESNET_API_KEY": "test-key", "BOT1_SSH_PASSWORD": "test-password"}
+        ):
+            config = yaml.safe_load(
+                (Path(__file__).resolve().parents[1] / "agent/config/AttackConfig.yaml").read_text()
+            )
+            config["model_presets"]["cesnet"].update(
+                planner="glm-5.3", interpreter="kimi-k3", summarizer="glm-5"
+            )
+            path = Path(directory) / "config.yaml"
+            path.write_text(yaml.safe_dump(config))
+            utils.load_environment(None, path, provider_override="cesnet")
+        self.assertEqual(utils.PLANNER_SOURCE, "cesnet")
+        self.assertEqual(utils.INTERPRETER_SOURCE, "cesnet")
+        self.assertEqual(utils.SUMMARIZER_SOURCE, "cesnet")
+        self.assertEqual(utils.MODELS["planner"], "glm-5.3")
+        self.assertEqual(utils.MODELS["interpreter"], "kimi-k3")
+        self.assertEqual(utils.MODELS["summarizer"], "glm-5")
+
     def _config_path(self, directory, base_url):
         config = yaml.safe_load((Path(__file__).resolve().parents[1] / "agent/config/AttackConfig.yaml").read_text())
         config["planner_source"] = "cesnet"

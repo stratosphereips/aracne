@@ -505,7 +505,7 @@ def _get_provider(name: str) -> Dict[str, object]:
     return provider
 
 
-def load_environment(env_path, config_path=None):
+def load_environment(env_path, config_path=None, provider_override=None):
     """Loads environment variables and attack configuration."""
     global OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_CLIENT, OPENAI_CLIENTS
     global SSH_CONFIG, MODELS, PLANNER_SOURCE, SUMMARIZER_SOURCE, INTERPRETER_SOURCE
@@ -549,9 +549,29 @@ def load_environment(env_path, config_path=None):
         "user": target_profile["user"],
         "password": target_profile["password"],
     }
-    interpreter_model = attack_config["interpreter_model"]
-    planner_model = attack_config["planner_model"]
-    summarizer_model = attack_config["summarizer_model"]
+    if provider_override:
+        provider_override = provider_override.strip().lower()
+        presets = attack_config.get("model_presets") or {}
+        preset = presets.get(provider_override)
+        if not isinstance(preset, dict):
+            available = ", ".join(sorted(presets)) or "none"
+            raise ValueError(
+                f"No model preset for provider '{provider_override}'. Available presets: {available}."
+            )
+        if provider_override not in LLM_PROVIDERS:
+            raise ValueError(f"Provider '{provider_override}' is not configured under llm_providers.")
+        missing = [role for role in ("planner", "interpreter", "summarizer") if not preset.get(role)]
+        if missing:
+            raise ValueError(
+                f"Model preset '{provider_override}' is missing: {', '.join(missing)}."
+            )
+        planner_model = preset["planner"]
+        interpreter_model = preset["interpreter"]
+        summarizer_model = preset["summarizer"]
+    else:
+        interpreter_model = attack_config["interpreter_model"]
+        planner_model = attack_config["planner_model"]
+        summarizer_model = attack_config["summarizer_model"]
     interpreter_temperature = _coerce_temperature(
         attack_config.get("interpreter_temperature"),
         "interpreter_temperature",
@@ -567,9 +587,9 @@ def load_environment(env_path, config_path=None):
     summarize = attack_config["summarizing"]
     action_limit = attack_config["action_limit"]
 
-    planner_source_raw = attack_config["planner_source"].strip().lower()
-    summarizer_source_raw = attack_config["summarizer_source"].strip().lower()
-    interpreter_source_raw = attack_config["interpreter_source"].strip().lower()
+    planner_source_raw = provider_override or attack_config["planner_source"].strip().lower()
+    summarizer_source_raw = provider_override or attack_config["summarizer_source"].strip().lower()
+    interpreter_source_raw = provider_override or attack_config["interpreter_source"].strip().lower()
 
     PLANNER_SOURCE = planner_source_raw
     SUMMARIZER_SOURCE = summarizer_source_raw
