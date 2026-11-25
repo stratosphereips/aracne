@@ -115,6 +115,26 @@ curl https://llm.ai.e-infra.cz/v1/chat/completions \
 
 List models available to your key with `curl -H "Authorization: Bearer ${CESNET_API_KEY}" https://llm.ai.e-infra.cz/v1/models`.
 
+#### CESNET model ranking
+
+The following user-provided ranking is a qualitative guide for complex reasoning, programming, tool use, and autonomous agents as of November 25, 2026. Model availability depends on your CESNET account; check `/v1/models` before selecting an API model ID.
+
+| Rank | API model ID | Intelligence tier | Main strength |
+| ---: | --- | --- | --- |
+| 1 | `kimi-k3.1-pro` | Frontier | Complex agents, planning, coding |
+| 2 | `glm-5.3` | Frontier | Reasoning, coding, tool use |
+| 3 | `deepseek-v4.1-flash-thinking` | Frontier | Reasoning, mathematics |
+| 4 | `kimi-k3` | Very high | Complex reasoning, agents |
+| 5 | `qwen3.8-flash-next` | Very high | Agentic coding, efficiency |
+| 6 | `deepseek-v4.1-flash` | Very high | General tasks, speed |
+| 7 | `glm-5` | Very high | Reasoning, programming |
+| 8 | `glm-5.3-flash` | High | Fast inference |
+| 9 | `qwen3.8-27b` | High | Coding, efficiency |
+| 10 | `qwen3.5-int4` | High | General reasoning |
+| 11 | `gpt-oss-120b` | High | Reasoning, reproducibility |
+| 12 | `mistral-medium-3.5` | High | General-purpose tasks |
+| — | `gemma4` | Undetermined | Depends on parameter count |
+
 ## Usage
 
 Run from the repository root using the wrapper:
