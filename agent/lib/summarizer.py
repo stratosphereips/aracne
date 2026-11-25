@@ -3,7 +3,7 @@ from lib.utils import MODELS, call_model, load_prompt
 def summarize_context(new_context, previous_summary=None):
     """Generates an updated context summary using an LLM."""
     prompt = load_prompt("config/summarizerConfig.yml").format(
-        previous_summary=previous_summary,
+        previous_summary=previous_summary or "",
         new_context=new_context,
     )
     response = call_model(

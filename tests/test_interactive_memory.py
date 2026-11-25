@@ -1,4 +1,5 @@
 import sys
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,6 +7,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "agent"))
 from lib import planner
+from lib.utils import load_prompt
 from lib.memory import InteractiveMemory
 
 
@@ -32,11 +34,44 @@ class InteractiveMemoryTests(unittest.TestCase):
 
     def test_new_goal_prompt_contains_prior_context(self):
         prior = "Found host 192.168.0.7 in previous goal"
-        response = '{"steps": ["Inspect 192.168.0.7"], "goal_reached": false}'
+        response = '{"steps": ["Inspect 192.168.0.7"], "goal_reached": false, "goal_verification": "The host has not been inspected yet."}'
         with patch.object(planner, "call_model", return_value=response) as call:
             planner.generate_plan("Inspect the found host", prior_context=prior)
         self.assertIn(prior, call.call_args.args[0])
         self.assertIn("judge goal_reached only for the current goal", call.call_args.args[0])
+
+    def test_planner_prompt_renders_valid_json_example(self):
+        prompt = planner.PROMPT.format(goal="Find the current user", summary="")
+        example = next(line.split("Example: ", 1)[1] for line in prompt.splitlines() if "Example: " in line)
+        parsed = json.loads(example)
+        self.assertEqual(parsed["goal_reached"], False)
+        self.assertIn("goal_verification", parsed)
+        self.assertNotIn("dummy ssh", prompt.lower())
+
+    def test_interpreter_and_summarizer_prompts_render_with_shell_evidence(self):
+        command = "printf '%s' '{\"host\":\"192.0.2.3\"}'"
+        interpreter_prompt = load_prompt("config/interpreterConfig.yml").format(
+            instruction=f"Run {command} on the configured host"
+        )
+        summary_prompt = load_prompt("config/summarizerConfig.yml").format(
+            previous_summary="Found 192.0.2.3:22",
+            new_context=f"COMMAND: {command}\nEXIT STATUS: 0",
+        )
+        self.assertIn(command, interpreter_prompt)
+        self.assertIn(command, summary_prompt)
+        self.assertIn("Found 192.0.2.3:22", summary_prompt)
+        self.assertNotIn("{instruction}", interpreter_prompt)
+        self.assertNotIn("{new_context}", summary_prompt)
+
+    def test_planner_rejects_nonboolean_or_unverified_goal_status(self):
+        for response in (
+            '{"steps": [], "goal_reached": "false", "goal_verification": "unknown"}',
+            '{"steps": ["Run another check"], "goal_reached": true, "goal_verification": "already done"}',
+            '{"steps": [], "goal_reached": true}',
+            '{"steps": [], "goal_reached": false, "goal_verification": "needs a check"}',
+        ):
+            with self.assertRaises(ValueError):
+                planner.parse_plan_response(response, "test")
 
     def test_memory_keeps_ports_without_raw_nmap_fingerprint(self):
         memory = InteractiveMemory()

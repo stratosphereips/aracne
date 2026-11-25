@@ -148,12 +148,6 @@ def append_experiment_log(*lines: str):
             handle.write(f"{line.rstrip()}\n")
 
 
-def _escape_braces(value: str | None) -> str:
-    if not value:
-        return ""
-    return value.replace("{", "{{").replace("}", "}}")
-
-
 def prepare_experiment(goal: str, summarize: bool):
     global CURRENT_EXPERIMENT_DIR, CURRENT_EXPERIMENT_LOG, EXPERIMENT_START_TIME, EXPERIMENT_FINALIZED
 
@@ -329,25 +323,23 @@ def generate_final_report(goal: str, outcome: str, reason: str, memory=None) -> 
         ),
     )
     prompt = prompt_template.format(
-        goal=_escape_braces(goal) or "<unspecified>",
-        outcome=_escape_braces(outcome),
-        reason=_escape_braces(reason) or "Not provided",
-        context=_escape_braces(context_text),
+        goal=goal or "<unspecified>",
+        outcome=outcome,
+        reason=reason or "Not provided",
+        context=context_text,
     )
     instruction = FINAL_SUMMARY_CONFIG.get(
         "instruction",
         (
-            "Provide a concise, professional final summary in exactly two sentences of plain text. "
-            "Sentence one must directly answer the goal question or state if it was achieved. "
-            "Sentence two must cite the key evidence that supports that conclusion. "
-            "Do not include JSON, bullet lists, plans, or any other structured output—only the two sentences."
+            "Answer the goal, then cite the recorded evidence. Distinguish the run outcome "
+            "from verified results, state uncertainty, and preserve exact relevant facts. "
+            "Use concise plain text."
         ),
     )
     try:
         summary = call_model(
-            prompt,
+            f"{instruction.strip()}\n\n{prompt}",
             MODELS["interpreter"],
-            instruction,
             caller="interpreter.final_summary",
         )
     except Exception as exc:

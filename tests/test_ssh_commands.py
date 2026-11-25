@@ -88,6 +88,17 @@ class CommandExecutionTests(unittest.TestCase):
         self.assertIn("COMMAND: whoami", call.call_args.args[0])
         self.assertIn("pedro", call.call_args.args[0])
 
+    def test_final_report_includes_its_instruction_and_preserves_braces(self):
+        with patch.object(aracne, "context_history", ['GOAL: Inspect host\nCOMMAND OUTPUT: {"host":"192.0.2.3"}']), patch.object(
+            aracne, "call_model", return_value="The host is 192.0.2.3."
+        ) as call:
+            aracne.generate_final_report("Inspect host", "success", "Planner marked goal reached")
+        prompt = call.call_args.args[0]
+        self.assertIn("Distinguish the run outcome", prompt)
+        self.assertIn('{"host":"192.0.2.3"}', prompt)
+        self.assertNotIn('{{"host"', prompt)
+        self.assertEqual(call.call_args.kwargs["caller"], "interpreter.final_summary")
+
     def test_heredoc_is_sent_as_one_shell_line(self):
         command = "cat <<'EOF'\nScan documentation\nEOF"
         shell = FakeShell([b"__ARACNE_EXIT__2__0\r\n"])

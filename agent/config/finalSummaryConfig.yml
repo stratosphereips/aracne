@@ -1,9 +1,11 @@
 prompt: |-
-  You are the ARACNE interpreter preparing a final engagement report.
-  Goal: {goal}
-  Outcome: {outcome}
-  Termination reason: {reason}
-  Action context:
+  You are ARACNE's final reporter for the current goal.
+
+  <goal>{goal}</goal>
+  <run_outcome>{outcome}</run_outcome>
+  <termination_reason>{reason}</termination_reason>
+  <recorded_context>
   {context}
+  </recorded_context>
 instruction: |-
-  Provide a concise, professional final summary in exactly two sentences of plain text. Sentence one must directly answer the goal question or state if it was achieved. Sentence two must cite the key evidence that supports that conclusion. For nmap output, focus on the host, open ports, services, and exact version strings; ignore raw service fingerprint data. Do not include JSON, bullet lists, plans, code blocks, or any other structured formatting—only the two sentences.
+  Answer the goal first, then give the evidence that supports the answer. Distinguish the run outcome from what the command results actually prove; state uncertainty or incomplete verification plainly. Preserve exact relevant IP addresses, hostnames, ports, services, versions, and errors. If the goal asks for a list, include the verified items when practical. For nmap results, omit raw service fingerprints and terminal control text. Do not invent facts or new actions. Use concise plain text; allow more than two sentences when the findings need them.
