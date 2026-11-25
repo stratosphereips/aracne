@@ -70,14 +70,14 @@ targets:                     # Named SSH target profiles
     password: admin
 default_target: bot1          # Which profile to load by default
 planner_source: "cesnet"     # openai | ollama | cesnet
-planner_model: "glm-5.3-flash"
+planner_model: "kimi-k3.1-pro"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
 summarizer_source: "openai"  # openai | ollama | cesnet
-summarizer_model: "gpt-4o-2024-08-06"
+summarizer_model: "gpt-6.1-sol"
 summarizer_temperature: 1.0
 interpreter_source: "cesnet"  # openai | ollama | cesnet
-interpreter_model: "glm-5.3-flash"
+interpreter_model: "kimi-k3.1-pro"
 interpreter_temperature: 1.0
 action_limit: 50
 ```
