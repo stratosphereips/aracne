@@ -593,6 +593,8 @@ def load_environment(env_path, config_path=None):
             key = provider.get("api_key")
             if env_var:
                 key = key or os.getenv(str(env_var))
+                if not key:
+                    raise ValueError(f"Error: Missing {env_var} for provider '{provider_name}'.")
             if not key and provider_name == "cesnet":
                 key = os.getenv("CESNET_API_KEY")
             if provider_name == "cesnet" and not key:

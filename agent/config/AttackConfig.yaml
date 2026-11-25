@@ -23,6 +23,9 @@ planner_model: kimi-k3.1-pro
 #planner_model: gpt-5.6-luna
 #planner_model: gpt-6-luna
 #--
+#planner_source: groq
+#planner_model: openai/gpt-oss-120b
+#--
 #planner_source: ollama
 #planner_model: qwen3:1.7b
 #planner_source: cesnet
@@ -52,6 +55,9 @@ summarizer_model: gpt-6.1-sol
 #summarizer_model: qwen3.5-int4
 #summarizer_model: gpt-oss-120b
 #summarizer_model: mistral-medium-3.5
+# To use Groq for summaries, switch summarizer_source and uncomment the model.
+#summarizer_source: groq
+#summarizer_model: openai/gpt-oss-120b
 summarizer_temperature: 1.0
 
 interpreter_source: cesnet
@@ -79,6 +85,9 @@ interpreter_model: kimi-k3.1-pro
 #interpreter_model: gpt-5.6-terra
 #interpreter_model: gpt-5.6-luna
 #interpreter_model: gpt-6-luna
+#--
+#interpreter_source: groq
+#interpreter_model: openai/gpt-oss-120b
 #--
 interpreter_temperature: 1.0
 
@@ -114,3 +123,7 @@ llm_providers:
     kind: openai
     base_url: https://llm.ai.e-infra.cz/v1
     api_key_env: CESNET_API_KEY
+  groq:
+    kind: openai
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY

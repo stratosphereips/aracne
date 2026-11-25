@@ -30,10 +30,10 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 pip install -r requirements.txt
-cp env_EXAMPLE agent/.env
+cp env_EXAMPLE .env
 ```
 
-Populate `agent/.env` with `CESNET_API_KEY` for the default CESNET models and `BOT1_SSH_PASSWORD` for the default SSH target. SSH target profiles are configured in `agent/config/AttackConfig.yaml`; `OPENAI_API_KEY` is needed when an enabled role uses OpenAI (for example, when summaries are enabled with the default summarizer).
+Populate `.env` with `CESNET_API_KEY` for the default CESNET models and `BOT1_SSH_PASSWORD` for the default SSH target. SSH target profiles are configured in `agent/config/AttackConfig.yaml`; `OPENAI_API_KEY` is needed when an enabled role uses OpenAI (for example, when summaries are enabled with the default summarizer).
 
 ## Configuration
 
@@ -52,6 +52,10 @@ llm_providers:
     kind: openai
     base_url: https://llm.ai.e-infra.cz/v1
     api_key_env: CESNET_API_KEY
+  groq:
+    kind: openai
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
 targets:                     # Named SSH target profiles
   bot1:
     host: 127.0.0.1
@@ -69,21 +73,21 @@ targets:                     # Named SSH target profiles
     user: admin
     password: admin
 default_target: bot1          # Which profile to load by default
-planner_source: "cesnet"     # openai | ollama | cesnet
+planner_source: "cesnet"     # openai | ollama | cesnet | groq
 planner_model: "kimi-k3.1-pro"
 planner_temperature: 1.0      # Optional creativity control per role
 summarizing: false
-summarizer_source: "openai"  # openai | ollama | cesnet
+summarizer_source: "openai"  # openai | ollama | cesnet | groq
 summarizer_model: "gpt-6.1-sol"
 summarizer_temperature: 1.0
-interpreter_source: "cesnet"  # openai | ollama | cesnet
+interpreter_source: "cesnet"  # openai | ollama | cesnet | groq
 interpreter_model: "kimi-k3.1-pro"
 interpreter_temperature: 1.0
 action_limit: 50
 ```
 
 You can switch targets by editing the `default_target` value or adding additional entries under `targets` for your own machines.
-Use `password_env` to read a target password from the named environment variable instead of storing it in YAML. The default `bot1` profile reads `BOT1_SSH_PASSWORD` from `agent/.env` or the process environment.
+Use `password_env` to read a target password from the named environment variable instead of storing it in YAML. The default `bot1` profile reads `BOT1_SSH_PASSWORD` from `.env` or the process environment.
 
 The `llm_providers` section declares connection details for each LLM backend. Providers of kind `openai` use the OpenAI-compatible API, while providers of kind `ollama` route to a local Ollama daemon (either via `host`/`port` or a `base_url`).
 
@@ -92,6 +96,8 @@ The `llm_providers` section declares connection details for each LLM backend. Pr
 - Any source set to `ollama` must have a provider entry with connection details (host/port or `base_url`).
 - Provider names (`openai`, `ollama`, `cesnet`, etc.) are referenced by `planner_source`, `summarizer_source`, and `interpreter_source`.
 - Per-role `*_temperature` values (0–2) are forwarded directly to the respective LLM API (`temperature` for OpenAI-compatible endpoints, `options.temperature` for Ollama).
+
+To use Groq, put `GROQ_API_KEY=...` in the ignored root `.env` file (or export it in the process environment). Set any role's `*_source` to `groq` and its matching `*_model` to `openai/gpt-oss-120b`. The default CLI reads the root `.env`; use `-e` to select a different file. The provider entry uses `kind: openai`, and the model is selected per role rather than in `llm_providers`.
 
 ### OpenAI model comparison
 
