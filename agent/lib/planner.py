@@ -31,8 +31,8 @@ def parse_plan_response(raw_response: str, caller: str) -> dict:
     steps = plan.get("steps")
     if not isinstance(steps, list) or any(not isinstance(step, str) or not step.strip() for step in steps):
         raise ValueError("Planner response needs a list of nonempty steps")
-    if not plan["goal_reached"] and not steps:
-        raise ValueError("Planner must provide a next step while the goal is not reached")
+    # An empty step list is a legitimate incomplete result when required
+    # targets or prerequisites are missing. The caller reports that outcome.
     if plan["goal_reached"] and steps:
         raise ValueError("Planner cannot mark the goal reached while retaining steps")
     if not isinstance(plan.get("goal_verification"), str) or not plan["goal_verification"].strip():
@@ -55,8 +55,17 @@ def generate_plan(goal, prior_context=None):
 
     last_error = None
     for attempt in range(1, 4):
+        request = prompt
+        if last_error is not None:
+            request += (
+                "\n\nYour previous response could not be parsed as the required plan JSON: "
+                f"{last_error}. Return only one JSON object with steps (array), "
+                "goal_reached (boolean), and goal_verification (nonempty string). "
+                "If no action is possible, use steps: [], goal_reached: false, "
+                "and explain the missing requirement in goal_verification."
+            )
         response = call_model(
-            prompt,
+            request,
             MODELS["planner"],
             goal,
             caller="planner.generate_plan",
@@ -74,7 +83,7 @@ def generate_plan(goal, prior_context=None):
     else:
         raise LLMProviderError(
             "planner",
-            "Planner returned invalid JSON three times in a row. Aborting.",
+            f"Planner could not return a valid plan after three attempts ({last_error}). No command was run.",
         ) from last_error
 
     if "goal_reached" in plan and plan["goal_reached"]:
@@ -102,8 +111,17 @@ def adapt_plan(goal, context):
 
     last_error = None
     for attempt in range(1, 4):
+        request = prompt
+        if last_error is not None:
+            request += (
+                "\n\nYour previous response could not be parsed as the required plan JSON: "
+                f"{last_error}. Return only one JSON object with steps (array), "
+                "goal_reached (boolean), and goal_verification (nonempty string). "
+                "If no action is possible, use steps: [], goal_reached: false, "
+                "and explain the missing requirement in goal_verification."
+            )
         response = call_model(
-            prompt,
+            request,
             MODELS["planner"],
             caller="planner.adapt_plan",
         )
@@ -120,7 +138,7 @@ def adapt_plan(goal, context):
     else:
         raise LLMProviderError(
             "planner",
-            "Planner returned invalid JSON three times in a row during adaptation. Aborting.",
+            f"Planner could not return a valid adapted plan after three attempts ({last_error}). No command was run.",
         ) from last_error
 
     if "steps" not in plan:

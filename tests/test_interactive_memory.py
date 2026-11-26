@@ -67,12 +67,11 @@ class InteractiveMemoryTests(unittest.TestCase):
         self.assertNotIn("{instruction}", interpreter_prompt)
         self.assertNotIn("{new_context}", summary_prompt)
 
-    def test_planner_rejects_nonboolean_or_unverified_goal_status(self):
+    def test_planner_rejects_nonboolean_or_inconsistent_goal_status(self):
         for response in (
             '{"steps": [], "goal_reached": "false", "goal_verification": "unknown"}',
             '{"steps": ["Run another check"], "goal_reached": true, "goal_verification": "already done"}',
             '{"steps": [], "goal_reached": true}',
-            '{"steps": [], "goal_reached": false, "goal_verification": "needs a check"}',
         ):
             with self.assertRaises(ValueError):
                 planner.parse_plan_response(response, "test")

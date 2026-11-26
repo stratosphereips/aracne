@@ -535,7 +535,9 @@ def load_environment(env_path, config_path=None, provider_override=None):
                 raise FileNotFoundError(f"Error: The specified .env file does not exist: {env_path}")
         elif not env_path_obj.exists():
             raise FileNotFoundError(f"Error: The specified .env file does not exist: {env_path_obj}")
-        load_dotenv(env_path_obj)
+        # An explicitly selected .env file must win over stale variables left
+        # exported in the shell (especially after the user edits that file).
+        load_dotenv(env_path_obj, override=True)
 
     config_path_obj = _resolve_config_path(config_path)
 
@@ -911,6 +913,11 @@ def _ensure_openai_models_available(provider_name: str, models: set[str]):
         try:
             available = {item.id for item in client.models.list().data}
         except Exception as exc:
+            if getattr(exc, "status_code", None) == 401:
+                raise RuntimeError(
+                    "CESNET rejected the configured CESNET_API_KEY (HTTP 401). "
+                    "Replace it with an active API key from the e-INFRA chat account."
+                ) from exc
             raise RuntimeError(f"CESNET model list failed: {exc}") from exc
         for model in sorted(models):
             if model not in available:

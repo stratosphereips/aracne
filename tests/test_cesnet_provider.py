@@ -13,6 +13,21 @@ from lib import utils
 
 
 class CesnetProviderTests(unittest.TestCase):
+    def test_explicit_env_file_replaces_stale_exported_key(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"CESNET_API_KEY": "stale-key", "LOCALHOST_SSH_PASSWORD": "test-password"}
+        ):
+            config = yaml.safe_load(
+                (Path(__file__).resolve().parents[1] / "agent/config/AttackConfig.yaml").read_text()
+            )
+            config["default_provider"] = "cesnet"
+            config_path = Path(directory) / "config.yaml"
+            config_path.write_text(yaml.safe_dump(config))
+            env_path = Path(directory) / ".env"
+            env_path.write_text("CESNET_API_KEY=fresh-key\n")
+            utils.load_environment(env_path, config_path)
+            self.assertEqual(utils.OPENAI_PROVIDER_KEYS["cesnet"], "fresh-key")
+
     def test_provider_override_selects_all_role_presets(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(
             os.environ, {"CESNET_API_KEY": "test-key", "LOCALHOST_SSH_PASSWORD": "test-password"}
@@ -80,6 +95,19 @@ class CesnetProviderTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(RuntimeError, "chat completion failed: HTTP 403"):
                 utils._ensure_openai_models_available("cesnet", {"glm-5.3"})
+
+    def test_preflight_identifies_rejected_api_key_without_echoing_it(self):
+        class RejectedKey(Exception):
+            status_code = 401
+
+        def reject():
+            raise RejectedKey("server rejected sk-secret-value")
+
+        client = SimpleNamespace(models=SimpleNamespace(list=reject))
+        with patch.object(utils, "_get_openai_client", return_value=client):
+            with self.assertRaisesRegex(RuntimeError, "CESNET rejected the configured CESNET_API_KEY") as error:
+                utils._ensure_openai_models_available("cesnet", {"kimi-k3.1-pro"})
+        self.assertNotIn("sk-secret-value", str(error.exception))
 
     def test_preflight_rejects_unlisted_model_without_completion(self):
         client = SimpleNamespace(models=SimpleNamespace(list=lambda: SimpleNamespace(data=[])))

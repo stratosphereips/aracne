@@ -1214,6 +1214,7 @@ def main():
                 SESSION_PATH_AT_EXIT = memory.session_path
         except LLMProviderError as err:
             print_status("❌", f"{err}", Palette.RED, bold=True)
+            finalize_experiment(goal, "error", str(err), "")
             if not args.interactive:
                 return
         except KeyboardInterrupt:

@@ -34,6 +34,7 @@ cp env_EXAMPLE .env
 ```
 
 Populate `.env` with `LOCALHOST_SSH_PASSWORD` for the default SSH target and the API key required by each selected model provider (`OPENAI_API_KEY`, `GROQ_API_KEY`, or `CESNET_API_KEY`). SSH target profiles and model selections are configured in `agent/config/AttackConfig.yaml`.
+When ARACNE reads an explicit `.env` file, its values override older exported variables of the same name in that process.
 
 ## Configuration
 
